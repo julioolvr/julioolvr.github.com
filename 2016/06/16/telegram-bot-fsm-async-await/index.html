@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
+<html class='no-js'>
+  <head>
+    <meta charset='utf-8'>
+    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
+    <title>Creating a conversational Telegram bot in Node.js with a finite state machine and async/await | Julio</title>
+    <meta content='Blog' name='description'>
+    <meta content='width=device-width' name='viewport'>
+    <link href='https://plus.google.com/117723231368654711284/posts' rel='author'>
+    <meta content='summary' name='twitter:card'>
+    <meta content='@julioolvr' name='twitter:site'>
+    <meta content='Creating a conversational Telegram bot in Node.js with a finite state machine and async/await' name='twitter:title'>
+    <meta content='When putting a bunch of buzzwords together just makes sense.' name='twitter:description'>
+    <script src="../../../../javascripts/vendor/modernizr-2.6.1.min.js" type="text/javascript"></script>
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Roboto:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="../../../../stylesheets/site.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <!--[if lt IE 7]> <p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p> <![endif]-->
+    <div class='content'>
+      <div class='main' role='main'>
+        <article class='post'>
+          <div class='date'>
+            2016/06/16
+          </div>
+          <h1>
+            Creating a conversational Telegram bot in Node.js with a finite state machine and async/await
+          </h1>
+          <div class='tags'>
+            <a href="/tags/javascript/">#javascript</a>, <a href="/tags/telegram/">#telegram</a>, <a href="/tags/bots/">#bots</a>, <a href="/tags/node/">#node</a>
+          </div>
+          <p><a href="https://telegram.org/">Telegram</a>, for those who don&#39;t know it, is a free multi-platform messaging app.
+          They release new versions with interesting features fairly often, and one of the biggest ones was without
+          a doubt their <a href="https://core.telegram.org/bots">bot platform</a>. I&#39;ve been having some fun lately developing
+          a <a href="https://github.com/julioolvr/telegram-frinkiac-bot">couple</a> of <a href="https://github.com/julioolvr/telegram-sticker-extractor-bot">bots</a>,
+          and I came up with a solution for a conversation-based bot based on a finite state machine that makes use of ECMAScript&#39;s
+          upcoming <a href="https://tc39.github.io/ecmascript-asyncawait/"><code>async</code>/<code>await</code></a> that I believe is decent and interesting enough to
+          share. I&#39;ll explain it by creating a new bot from scratch.</p>
+          
+          <p></p>
+          
+          <h2>Intro</h2>
+          
+          <p>Telegram&#39;s bot API is stateless. The only data you get regarding the conversation before is the id of the message the user
+          is replying to, if any. Initially, this means that the bot can only respond easily to single commands, but can&#39;t have a more
+          natural conversation to accomplish a complex task.</p>
+          
+          <p>Luckily, the API provides us with an option to force a reply from the user when sending a message. This means that, unless
+          the user actively cancels it, every message sent can be a reply to a previous message of the bot. This will allow us to
+          build a bot that can keep track of each conversation it has and collect data in several steps.</p>
+          
+          <p>We&#39;re going to build a simple echo bot, but with some conversational characteristics. When the bot receives the <code>/start</code>
+          command, it will ask for the user&#39;s name. After that, it will start echoing mentioning the name of the user it is echoing to.
+          Upon receiving a <code>/stop</code> command, it will ask for confirmation. If the user says <em>yes</em>, then the bot will stop echoing, if
+          the user says <em>no</em>, it will go back to echoing, and if the user says anything else it will ask for clarification.</p>
+          
+          <p>I find Node.js fitting as a platform for building the bots - all operations through Telegram&#39;s API are asynchronous and most of
+          the time I end up relying on yet more IO for the specific features of the bots. Node.js makes it easier to build bots that can
+          respond to multiple conversations at a time without blocking.</p>
+          
+          <p>You can see all the code <a href="https://github.com/julioolvr/telegram-bot-example">here</a>. You&#39;ll have to register a bot and set
+          its key in a <code>.env</code> file if you want to try it. See the exact instructions in the README file.</p>
+          
+          <h2>First commit</h2>
+          
+          <p>The <a href="https://github.com/julioolvr/telegram-bot-example/commit/91f4413d2ae33f643825a75596a19b03895549bc">first commit</a> has nothing
+          really specific to the topic, so I&#39;ll just go over the tools and libraries we&#39;ll be using. Perhaps the only thing slightly related
+          is adding <a href="https://babeljs.io">babel</a> that we&#39;ll eventually need for transpiling the async functions, but we&#39;ll need to do some
+          more configuration for that. So, feel free to skip to the next section if you&#39;re not interested on what&#39;s on that basic setup.</p>
+          
+          <p>Looking at the <code>package.json</code> file, we have <code>eslint</code> in our dev dependencies, together with <code>babel-eslint</code> that will be needed
+          for ESLint to play nicely with our async functions. I&#39;m also using <code>nodemon</code> to automatically reload my files during development.
+          The runtime dependencies include <code>babel</code> and <code>babel-register</code> to easily transpile our code, Babel&#39;s preset for ES2015 and
+          <code>dotenv</code> to load the bot&#39;s token from a <code>.env</code> file.</p>
+          
+          <p>The <code>index.js</code> file simply uses <code>dotenv</code> to load the environment variables from <code>.env</code>, starts <code>babel-register</code> and initializes
+          the bot (which at this point just logs to the console and exits).</p>
+          
+          <p>The rest are configuration files for the various tools - <code>.eslintrc</code> for ESLint, <code>.babelrc</code> for Babel, <code>.nvmrc</code> to specify
+          Node&#39;s version with NVM and <code>.editorconfig</code> to keep a consistent style while writing the code.</p>
+          
+          <h2>Echoing</h2>
+          
+          <p>The <a href="https://github.com/julioolvr/telegram-bot-example/commit/1686a61f026fbd28ee9a1a6244ad80ef8684acb9">next step</a> is having
+          the bot actually doing something. Before we dive into the code, we&#39;ll have to actually create the bot in the platform. To do
+          that, talk to <a href="https://web.telegram.org/#/im?tgaddr=tg%3A%2F%2Fresolve%3Fdomain%3Dbotfather">@BotFather</a> and follow the steps.
+          It boils down to giving your bot a name. After that, you&#39;ll get a token that the bot will use to identify itself when querying
+          Telegram&#39;s API. Keep that somewhere safe and let&#39;s start working on some basic functionality.</p>
+          
+          <p>First things first, for a while I&#39;ve been coding the interaction with Telegram&#39;s API manually, using <a href="https://www.npmjs.com/package/request"><code>request</code></a>
+          or <a href="https://www.npmjs.com/package/got"><code>got</code></a> to make the requests. There are a number of already implemented solutions available
+          in NPM so this time I went with <a href="https://www.npmjs.com/package/node-telegram-bot-api"><code>node-telegram-bot-api</code></a>. It has most of
+          the API functionality implemented and it handles replies very well. So let&#39;s install it:</p>
+          <pre class="highlight plaintext"><code>npm i node-telegram-bot-api --save&#x000A;</code></pre>
+          
+          <p>Now let&#39;s update our <code>Bot</code> class - it will use an instance of the class exported by <code>node-telegram-bot-api</code> as a client to
+          interact with Telegram&#39;s API:</p>
+          <pre class="highlight javascript"><code><span class="kr">import</span> <span class="nx">TelegramBotClient</span> <span class="nx">from</span> <span class="s1">'node-telegram-bot-api'</span>&#x000A;&#x000A;<span class="kr">export</span> <span class="k">default</span> <span class="kr">class</span> <span class="nx">Bot</span> <span class="p">{</span>&#x000A;  <span class="nx">constructor</span><span class="p">(</span><span class="nx">token</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="k">this</span><span class="p">.</span><span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">TelegramBotClient</span><span class="p">(</span><span class="nx">token</span><span class="p">,</span> <span class="p">{</span> <span class="na">polling</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span>&#x000A;  <span class="p">}</span>&#x000A;&#x000A;  <span class="nx">start</span><span class="p">()</span> <span class="p">{</span>&#x000A;    <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="nx">message</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;      <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Got a message'</span><span class="p">,</span> <span class="nx">message</span><span class="p">)</span>&#x000A;    <span class="p">})</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Note that we need to pass two parameters to the client - the <code>token</code> is pretty simple, it&#39;s the token we got from @BotFather.
+          The options object is setting up the client to poll for updates. Your bot has two ways to get messages from Telegram. The
+          first one is using a webhook. You can configure the platform to push the messages to some endpoint that you own and read the
+          messages from there. This is a clean solution but at the same time it implies more configuration. For instance, the endpoint
+          <em>has</em> to be accessible through HTTPS. Self-signed certificates work, but it&#39;s still more troublesome to configure that than
+          using polling.</p>
+          
+          <p>The polling method (<a href="https://en.wikipedia.org/wiki/Push_technology#Long_polling">long polling</a>, actually) makes a request to
+          Telegram to fetch updates. If there are none, Telegram&#39;s server will just hold until there&#39;s one or a timeout is reached. That
+          way, immediately after a new update comes through, Telegram will resolve the pending request and your bot will get it almost
+          immediately.</p>
+          
+          <p>So how do we get the bot&#39;s token to the client? That&#39;s where <code>dotenv</code> comes in. We don&#39;t want the token to be hardcoded and
+          available for everyone with access to the code. So we&#39;ll put the token in a <code>.env</code> file, like</p>
+          <pre class="highlight plaintext"><code>BOT_TOKEN=123456789:abcdefghijklmnoprqstuvwxyz&#x000A;</code></pre>
+          
+          <p>Since we&#39;re already calling <code>dotenv.load()</code> in our <code>index.js</code> file, we have everything that&#39;s on <code>.env</code> available in
+          <code>process.env</code>. So we&#39;ll update <code>index.js</code> to pass that token to our <code>Bot</code> instance:</p>
+          <pre class="highlight diff"><code><span class="gd">-var bot = new Bot()&#x000A;</span><span class="gi">+var bot = new Bot(process.env.BOT_TOKEN)&#x000A;</span></code></pre>
+          
+          <p>So far so good, our bot logs each message it receives. Let&#39;s take one more step and make it echo whatever it receives. It&#39;s
+          rather simple using <code>node-telegram-bot-api</code>, we just need to tell it what message we want to send (the exact text we got) and
+          to which chat (the one we got it from):</p>
+          <pre class="highlight diff"><code><span class="gd">-    console.log('Got a message', message)&#x000A;</span><span class="gi">+    this.client.on('message', message =&gt; {&#x000A;+      this.client.sendMessage(message.chat.id, message.text)&#x000A;+    })&#x000A;</span></code></pre>
+          
+          <p>And that&#39;s it! At this point we have a bot that echoes whatever we send to it. Let&#39;s move onto having a very simple conversation
+          leveraging <code>async</code>/<code>await</code>.</p>
+          
+          <h2>Async/Await</h2>
+          
+          <p>Now we want to make our bot stop echoing. When the bot receives a message saying <em>stop</em>, it will just say it stopped echoing.
+          For that, we want to force the user to reply to each echo of the bot. You can see all the code in the
+          <a href="https://github.com/julioolvr/telegram-bot-example/commit/0b93835276b14a57c44c113bb12d70660e883085">third commit</a>.</p>
+          
+          <p>This could&#39;ve been done without waiting for replies - just make the bot send the message &ldquo;Stopping&rdquo; if the user sent the message
+          &ldquo;stop&rdquo;. It wouldn&#39;t actually <em>stop</em> doing anything, but the end result would be the same. Let&#39;s do it waiting for a user reply
+          for now and then we&#39;ll see an example which really needs the replies in the next step.</p>
+          
+          <p>We&#39;ll use the <a href="https://core.telegram.org/bots/api#forcereply"><code>ForceReply</code></a> option in the send messages API to make Telegram
+          automatically show the user the UI to reply to the bot&#39;s last message. Our code for sending the echo will now look like this:</p>
+          <pre class="highlight javascript"><code><span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                        <span class="p">`</span><span class="nx">echo</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                        <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;</code></pre>
+          
+          <p>Note that we have to pass the options as a string, so we&#39;ll use <code>JSON.stringify</code> for that.</p>
+          
+          <p><code>sendMessage</code> returns a promise that gets resolved with the sent message once it went through and which has some interesting
+          information about it, namely its id which can be used to wait for a reply. <code>node-telegram-bot-api</code> has a method called
+          <code>onReplyToMessage</code> which will execute a callback when a message comes that is a reply for a specific message id. So let&#39;s put
+          those two together to handle our user&#39;s first reply:</p>
+          <pre class="highlight javascript"><code><span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                        <span class="p">`</span><span class="nx">echo</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                        <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;  <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">reply</span> <span class="o">=&gt;</span> <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">))</span>&#x000A;</code></pre>
+          
+          <p>Nice. So what do we actually want to do with the reply? Well, if <code>reply.text === &#39;stop&#39;</code>, we want to stop echoing, otherwise
+          we want to echo again. And wait for another reply. So basically the same thing we just did. Let&#39;s extract it to a method then:</p>
+          <pre class="highlight javascript"><code><span class="nx">respondTo</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">text</span> <span class="o">===</span> <span class="s1">'stop'</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s1">'Stopping'</span><span class="p">)</span>&#x000A;  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>&#x000A;    <span class="k">this</span><span class="p">.</span><span class="nx">respondToMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">}</span>&#x000A;&#x000A;<span class="nx">respondToMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                          <span class="p">`</span><span class="nx">echo</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                          <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;    <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">sentMessage</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;      <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">onReplyToMessage</span><span class="p">(</span><span class="nx">sentMessage</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">sentMessage</span><span class="p">.</span><span class="nx">message_id</span><span class="p">,</span> <span class="nx">reply</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;        <span class="k">if</span> <span class="p">(</span><span class="nx">reply</span><span class="p">.</span><span class="nx">text</span> <span class="o">===</span> <span class="s1">'stop'</span><span class="p">)</span> <span class="p">{</span>&#x000A;          <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s1">'Stopping'</span><span class="p">)</span>&#x000A;        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>&#x000A;          <span class="k">this</span><span class="p">.</span><span class="nx">respondToMessage</span><span class="p">(</span><span class="nx">reply</span><span class="p">)</span>&#x000A;        <span class="p">}</span>&#x000A;      <span class="p">})</span>&#x000A;    <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>That should do the trick, right? Well, yes. But the code is (maybe arguably) harder to read than if it were synchronous. We
+          have some nesting when the algorithm is basically a <code>while</code> loop. So what if the code could look more like this:</p>
+          <pre class="highlight javascript"><code><span class="nx">respondTo</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="kd">let</span> <span class="nx">text</span> <span class="o">=</span> <span class="nx">message</span><span class="p">.</span><span class="nx">text</span>&#x000A;&#x000A;  <span class="k">while</span> <span class="p">(</span><span class="nx">text</span> <span class="o">!==</span> <span class="s1">'stop'</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="kd">let</span> <span class="nx">sentMessage</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                                              <span class="p">`</span><span class="nx">echo</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                                              <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;    <span class="kd">let</span> <span class="nx">reply</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">onReplyToMessage</span><span class="p">(</span><span class="nx">sentMessage</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">sentMessage</span><span class="p">.</span><span class="nx">message_id</span><span class="p">)</span>&#x000A;    <span class="nx">text</span> <span class="o">=</span> <span class="nx">reply</span><span class="p">.</span><span class="nx">text</span>&#x000A;  <span class="p">}</span>&#x000A;&#x000A;  <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s1">'Stopping'</span><span class="p">)</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Hint: it can, and it will. That&#39;s where <code>async</code> and <code>await</code> come in. The <a href="https://tc39.github.io/ecmascript-asyncawait/">Async Functions proposal</a>
+          aims to make it simpler to write asynchronous code like the above. It leverages the power of <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/function*">generators</a>
+          and <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise">promises</a> - and can actually be considered
+          <a href="https://tc39.github.io/ecmascript-asyncawait/#desugaring">syntax sugar over both</a> - to make writing code that interacts with
+          promises very straightforward.</p>
+          
+          <p>The first keyword, <code>async</code>, is used in function declarations to make it clear that they are asynchronous. In practice, this means
+          that they&#39;ll return promises. In our case, we just need to declare <code>respondTo</code> as <code>async respondTo</code>.</p>
+          
+          <p><code>await</code> can only be used in <code>async</code> functions. It will take the promise following it and stop execution until it resolves. Putting
+          the two of them together means that, roughly, the following two snippets are equivalent:</p>
+          <pre class="highlight javascript"><code><span class="kd">function</span> <span class="nx">syncFunction</span><span class="p">()</span> <span class="p">{</span>&#x000A;  <span class="k">return</span> <span class="nx">someAsyncOperation</span><span class="p">()</span>&#x000A;    <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">result</span> <span class="o">=&gt;</span> <span class="nx">result</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>&#x000A;    <span class="p">.</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="o">=&gt;</span> <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">))</span>&#x000A;<span class="p">}</span>&#x000A;&#x000A;<span class="nx">async</span> <span class="kd">function</span> <span class="nx">asyncFunction</span><span class="p">()</span> <span class="p">{</span>&#x000A;  <span class="k">try</span> <span class="p">{</span>&#x000A;    <span class="kd">let</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">someAsyncOperation</span><span class="p">()</span>&#x000A;    <span class="k">return</span> <span class="nx">result</span> <span class="o">+</span> <span class="mi">1</span>&#x000A;  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Going back to our code, the first step we need to take is to configure Babel to support async functions. Since they&#39;re not
+          part of the spec yet, they aren&#39;t supported by default. So first, we want to install <code>babel-plugin-transform-async-to-generator</code>
+          along with <code>babel-polyfill</code>:</p>
+          <pre class="highlight plaintext"><code>npm i babel-plugin-transform-async-to-generator babel-polyfill --save&#x000A;</code></pre>
+          
+          <p>Once that&#39;s done, we need to add <code>require(&#39;babel-polyfill&#39;)</code> before requiring <code>babel-register</code> in our <code>index.js</code> file, and
+          configure Babel to use the async transformation plugin in our <code>.babelrc</code> file:</p>
+          <pre class="highlight json"><code><span class="p">{</span><span class="w">&#x000A;  </span><span class="nt">"presets"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">&#x000A;    </span><span class="s2">"es2015"</span><span class="w">&#x000A;  </span><span class="p">],</span><span class="w">&#x000A;  </span><span class="nt">"plugins"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">&#x000A;    </span><span class="s2">"transform-async-to-generator"</span><span class="w">&#x000A;  </span><span class="p">]</span><span class="w">&#x000A;</span><span class="p">}</span><span class="w">&#x000A;</span></code></pre>
+          
+          <p>Now we can go and use async functions in the bot&#39;s code. We can use <code>await</code> directly with <code>this.client.sendMessage</code> since,
+          as we saw before, it returns a promise. <code>this.client.onReplyToMessage</code> is a little bit trickier - it doesn&#39;t return a promise,
+          instead it executes a callback that it receives as the last parameter when the reply arrives. We&#39;ll have to turn it into a
+          promise, but luckily that&#39;s not hard at all:</p>
+          <pre class="highlight javascript"><code><span class="kd">let</span> <span class="nx">reply</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">(</span><span class="nx">resolve</span> <span class="o">=&gt;</span>&#x000A;  <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">onReplyToMessage</span><span class="p">(</span><span class="nx">sentMessage</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">sentMessage</span><span class="p">.</span><span class="nx">message_id</span><span class="p">,</span> <span class="nx">resolve</span><span class="p">)</span>&#x000A;<span class="p">)</span>&#x000A;</code></pre>
+          
+          <p>I won&#39;t go into the details of promise creation since there are good posts out there, but the gist of it is that we&#39;re creating
+          a new promise that gets resolved when <code>this.client.onReplyToMessage</code> executes its callback, and the value it resolves to is
+          the parameter that&#39;s passed to that callback. So if we put everything together, we end up with something like this:</p>
+          <pre class="highlight javascript"><code><span class="nx">async</span> <span class="nx">respondTo</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="kd">let</span> <span class="nx">text</span> <span class="o">=</span> <span class="nx">text</span> <span class="o">=</span> <span class="nx">message</span><span class="p">.</span><span class="nx">text</span>&#x000A;&#x000A;  <span class="k">while</span> <span class="p">(</span><span class="nx">text</span> <span class="o">!==</span> <span class="s1">'stop'</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="kd">let</span> <span class="nx">sentMessage</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                                                    <span class="p">`</span><span class="nx">echo</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                                                    <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;    <span class="kd">let</span> <span class="nx">reply</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">(</span><span class="nx">resolve</span> <span class="o">=&gt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">onReplyToMessage</span><span class="p">(</span><span class="nx">sentMessage</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">sentMessage</span><span class="p">.</span><span class="nx">message_id</span><span class="p">,</span> <span class="nx">resolve</span><span class="p">))</span>&#x000A;    <span class="nx">text</span> <span class="o">=</span> <span class="nx">reply</span><span class="p">.</span><span class="nx">text</span>&#x000A;  <span class="p">}</span>&#x000A;&#x000A;  <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s1">'Stopping'</span><span class="p">)</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Note that we marked <code>respondTo</code> as <code>async</code>, and then used two <code>await</code>s in the body of the <code>while</code> loop. And that&#39;s it!
+          The code certainly reads a lot easier, almost as if it were synchronous. It could be better if we didn&#39;t have to &ldquo;promisify&rdquo;
+          the call to <code>this.client.onReplyToMessage</code> but it&#39;s definitely easier to follow than the version without <code>async</code>/<code>await</code>.</p>
+          
+          <p>One more change we&#39;ll have to do for this to work - while the user replies will get to the callback in <code>this.client.onReplyToMessage</code>,
+          they are also regular messages so they will show up in our callback to <code>this.client.on(&#39;message&#39;)</code> as well. So we have to update
+          that callback to only take into account messages which are not replies. Replies will already be caught by the loop.</p>
+          <pre class="highlight javascript"><code><span class="nx">start</span><span class="p">()</span> <span class="p">{</span>&#x000A;  <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="nx">message</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">message</span><span class="p">.</span><span class="nx">reply_to_message</span><span class="p">)</span> <span class="p">{</span>&#x000A;      <span class="k">this</span><span class="p">.</span><span class="nx">respondTo</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span>&#x000A;    <span class="p">}</span>&#x000A;  <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Having done this, it&#39;s time to model more complex behavior in the form of a state machine.</p>
+          
+          <h2>Finite State Machine</h2>
+          
+          <p>Let&#39;s remember the final functionality we expect from the bot. It should ask us for our name upon <code>/start</code>. Then, it should
+          start echoing whatever we send to it, until we say <code>/stop</code>. When we send that command, it should ask us for confirmation. If
+          we say &ldquo;yes&rdquo;, the execution should finish. If we say &ldquo;no&rdquo;, it should go back to echoing. If we say anything else, it should
+          ask for clarification.</p>
+          
+          <p>There might be several ways to model this behavior. What I know for sure is that I want to avoid having a bunch of flags and
+          complicated conditionals that are checked on each reply, because the pain it would be to write it wouldn&#39;t be comparable to the
+          pain of maintaining it. So one possible way to create a mental model of it is to think of the bot being in one of several states,
+          and being able to transition between them:</p>
+          
+          <p><img alt="Bot states" src="../../../../2016-06-16-telegram-bot-fsm-async-await/fsm.png" /></p>
+          
+          <p>It&#39;s been a while since I studied finite state machines so I&#39;m not going to pretend I remember them well enough to explain
+          it here. I&#39;ll refer to the always trustworthy <a href="https://en.wikipedia.org/wiki/Finite-state_machine">Wikipedia article</a> for them,
+          but if you want a quick explanation that&#39;s enough for the purposes of this post, here it goes.</p>
+          
+          <p>A finite state machine (FSM from now on) is a model that is composed of states, and the transitions between them. The machine
+          is always in one of those states, until an event comes that makes it change to another. Some of those states can be considered
+          final or terminal.</p>
+          
+          <p>Not surprisingly, that model fits the diagram of the bot above pretty well. The bot will be in one of several states, which
+          mostly represent what is it waiting for - the <code>/start</code> command, a name, text to echo and so on. It will be our job to determine,
+          based on the current state of the machine and the message we get from Telegram&#39;s API, what&#39;s the corresponding event.</p>
+          
+          <p>Again, you can check the <a href="https://github.com/julioolvr/telegram-bot-example/commit/ffb568314ad5f8f531828246495f0cc1852e0e2c">corresponding commit</a>
+          to see the changes.</p>
+          
+          <h3>Defining the state machine</h3>
+          
+          <p>Let&#39;s start by installing a library that will handle the FSM internals. I&#39;ll go with
+          <a href="https://www.npmjs.com/package/javascript-state-machine"><code>javascript-state-machine</code></a> but it&#39;s likely there are plenty of others.</p>
+          <pre class="highlight plaintext"><code>npm i javascript-state-machine --save&#x000A;</code></pre>
+          
+          <p>Now let&#39;s write the FSM from above using the library. Since an instance of the FSM keeps track of its current state, we want
+          to have one instance per conversation. So we&#39;ll start by defining a function that creates the machine:</p>
+          <pre class="highlight javascript"><code><span class="kr">import</span> <span class="nx">StateMachine</span> <span class="nx">from</span> <span class="s1">'javascript-state-machine'</span>&#x000A;&#x000A;<span class="kd">function</span> <span class="nx">createFsm</span><span class="p">()</span> <span class="p">{</span>&#x000A;  <span class="k">return</span> <span class="nx">StateMachine</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>&#x000A;    <span class="na">initial</span><span class="p">:</span> <span class="s1">'waitingstart'</span><span class="p">,</span>&#x000A;    <span class="na">final</span><span class="p">:</span> <span class="s1">'final'</span><span class="p">,</span>&#x000A;    <span class="na">events</span><span class="p">:</span> <span class="p">[</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'gotstart'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'waitingstart'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'waitingname'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'gotname'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'waitingname'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'echoing'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'gottext'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'echoing'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'echoing'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'gotstop'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'echoing'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'confirm'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'confirmed'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'confirm'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'final'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'cancelled'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'confirm'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'echoing'</span> <span class="p">},</span>&#x000A;      <span class="p">{</span> <span class="na">name</span><span class="p">:</span> <span class="s1">'invalid'</span><span class="p">,</span> <span class="na">from</span><span class="p">:</span> <span class="s1">'confirm'</span><span class="p">,</span> <span class="na">to</span><span class="p">:</span> <span class="s1">'confirm'</span> <span class="p">}</span>&#x000A;    <span class="p">]</span>&#x000A;  <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>If you take a look at each event, they represent the transitions defined in the diagram. The states aren&#39;t explicitly listed,
+          but you&#39;ll see all of them in the transitions. We can use that function in <code>respondTo</code> to get a new FSM for the conversation.
+          Also, now we have a fancier way to check if the conversation has ended - we can use the method <code>isFinished</code> from the state machine
+          to check for a final state. Let&#39;s update the code then:</p>
+          <pre class="highlight javascript"><code><span class="nx">async</span> <span class="nx">respondTo</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="kd">let</span> <span class="nx">fsm</span> <span class="o">=</span> <span class="nx">createFsm</span><span class="p">()</span>&#x000A;  <span class="kd">let</span> <span class="nx">lastReply</span> <span class="o">=</span> <span class="nx">message</span>&#x000A;&#x000A;  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="nx">fsm</span><span class="p">.</span><span class="nx">isFinished</span><span class="p">())</span> <span class="p">{</span>&#x000A;    <span class="kd">let</span> <span class="nx">text</span> <span class="o">=</span> <span class="nx">lastReply</span><span class="p">.</span><span class="nx">text</span>&#x000A;    <span class="kd">let</span> <span class="nx">event</span> <span class="o">=</span> <span class="nx">eventFromStateAndMessageText</span><span class="p">(</span><span class="nx">fsm</span><span class="p">.</span><span class="nx">current</span><span class="p">,</span> <span class="nx">text</span><span class="p">)</span>&#x000A;&#x000A;    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">event</span> <span class="o">||</span> <span class="nx">fsm</span><span class="p">.</span><span class="nx">cannot</span><span class="p">(</span><span class="nx">event</span><span class="p">))</span> <span class="p">{</span>&#x000A;      <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="s1">'I wasn\'t expecting that, try /start'</span><span class="p">)</span>&#x000A;      <span class="k">break</span>&#x000A;    <span class="p">}</span>&#x000A;&#x000A;    <span class="nx">fsm</span><span class="p">[</span><span class="nx">event</span><span class="p">](</span><span class="nx">lastReply</span><span class="p">)</span>&#x000A;&#x000A;    <span class="kd">let</span> <span class="nx">sentMessage</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">lastMessage</span>&#x000A;    <span class="nx">lastReply</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">(</span><span class="nx">resolve</span> <span class="o">=&gt;</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">onReplyToMessage</span><span class="p">(</span><span class="nx">sentMessage</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">sentMessage</span><span class="p">.</span><span class="nx">message_id</span><span class="p">,</span> <span class="nx">resolve</span><span class="p">))</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>Besides using <code>fsm.isFinished()</code> as our <code>while</code> condition, we&#39;re using <code>fsm.cannot(event)</code>. This means that once we figured out
+          what event corresponds to the received message, we can check if the machine can actually apply that transition. Otherwise, it
+          means the user sent something we weren&#39;t expecting. This doesn&#39;t necessarily applies to this case, since we&#39;re already considering
+          the current state when deciding which event we should trigger, but it&#39;s useful in more complex situations.</p>
+          
+          <p>Notice that we have a <code>lastMessage</code> variable that&#39;s not defined yet. Let&#39;s keep it there for now and we&#39;ll go back to it,
+          but basically it holds the last message the bot sent, so we can then wait for a reply to it.</p>
+          
+          <p>Also notice that we&#39;re calling <code>fsm[event](lastReply)</code> to make the FSM transition states. The FSM has a method for each event
+          we defined for it that will trigger such event. We can pass arbitrary parameters to that method, which we&#39;ll use later in the
+          callbacks.</p>
+          
+          <p>Let&#39;s go to that <code>eventFromStateAndMessageText</code> function now. We&#39;ll pass the current machine state and the text from the last
+          user reply, and expect to receive a string with the event. We consider the case where the event is <code>undefined</code>, because it can
+          happen that given the current state, there&#39;s no valid event for the message we got. The kind of logic that&#39;ll go in this function
+          goes something like &ldquo;if I&#39;m waiting for the /start command and I get the /start text, the event is &#39;gotstart&#39;&rdquo;, &ldquo;if I&#39;m waiting
+          for the name, whatever text I received generates the &#39;gotname&#39; event&rdquo; and so on:</p>
+          <pre class="highlight javascript"><code><span class="kd">function</span> <span class="nx">eventFromStateAndMessageText</span><span class="p">(</span><span class="nx">state</span><span class="p">,</span> <span class="nx">text</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="k">switch</span> <span class="p">(</span><span class="nx">state</span><span class="p">)</span> <span class="p">{</span>&#x000A;  <span class="k">case</span> <span class="s1">'waitingstart'</span><span class="err">:</span>&#x000A;    <span class="k">return</span> <span class="nx">text</span> <span class="o">===</span> <span class="s1">'/start'</span> <span class="o">&amp;&amp;</span> <span class="s1">'gotstart'</span>&#x000A;    <span class="k">break</span>&#x000A;  <span class="k">case</span> <span class="s1">'waitingname'</span><span class="err">:</span>&#x000A;    <span class="k">return</span> <span class="s1">'gotname'</span>&#x000A;    <span class="k">break</span>&#x000A;  <span class="k">case</span> <span class="s1">'echoing'</span><span class="err">:</span>&#x000A;    <span class="k">return</span> <span class="nx">text</span> <span class="o">===</span> <span class="s1">'/stop'</span> <span class="p">?</span> <span class="s1">'gotstop'</span> <span class="p">:</span> <span class="s1">'gottext'</span>&#x000A;    <span class="k">break</span>&#x000A;  <span class="k">case</span> <span class="s1">'confirm'</span><span class="err">:</span>&#x000A;    <span class="k">if</span> <span class="p">(</span><span class="nx">text</span> <span class="o">===</span> <span class="s1">'yes'</span><span class="p">)</span> <span class="p">{</span>&#x000A;      <span class="k">return</span> <span class="s1">'confirmed'</span>&#x000A;    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">text</span> <span class="o">===</span> <span class="s1">'no'</span><span class="p">)</span> <span class="p">{</span>&#x000A;      <span class="k">return</span> <span class="s1">'cancelled'</span>&#x000A;    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>&#x000A;      <span class="k">return</span> <span class="s1">'invalid'</span>&#x000A;    <span class="p">}</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <h3>Defining the machine&#39;s behavior</h3>
+          
+          <p>Now to the last part: where are we actually replying to the user? Well, the FSM provides us with a couple
+          of callbacks, specifically when the machine enters and leaves a state, and before and after executing an event. Each have their use
+          cases, but the way we thought our bot here I believe using the event callbacks makes sense - after I get /start, I want to ask
+          for the name. After I got a name, I want to start echoing, and so on.</p>
+          
+          <p>We want to attach these callbacks to the machine inside <code>respondTo</code> though, because we need some context for them - we want the
+          chat id we&#39;re responding to, and we want access to the Telegram client to be able to send messages back. So, before the <code>while</code>
+          loop we&#39;ll define all the callbacks:</p>
+          <pre class="highlight javascript"><code><span class="kd">let</span> <span class="nx">name</span>&#x000A;<span class="kd">let</span> <span class="nx">lastMessage</span>&#x000A;&#x000A;<span class="nx">fsm</span><span class="p">.</span><span class="nx">ongotstart</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">lastMessage</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                                        <span class="s1">'Let\'s begin! What\'s your name?'</span><span class="p">,</span>&#x000A;                                        <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;&#x000A;<span class="nx">fsm</span><span class="p">.</span><span class="nx">ongotname</span> <span class="o">=</span> <span class="p">(</span><span class="nx">event</span><span class="p">,</span> <span class="nx">from</span><span class="p">,</span> <span class="nx">to</span><span class="p">,</span> <span class="nx">message</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">name</span> <span class="o">=</span> <span class="nx">message</span><span class="p">.</span><span class="nx">text</span>&#x000A;  <span class="nx">lastMessage</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                                        <span class="p">`</span><span class="nx">Got</span> <span class="nx">it</span> <span class="nx">$</span><span class="p">{</span><span class="nx">name</span><span class="p">},</span> <span class="nx">I</span><span class="err">'</span><span class="nx">ll</span> <span class="nx">begin</span> <span class="nx">echoing</span> <span class="nx">your</span> <span class="nx">replies</span> <span class="nx">until</span> <span class="nx">you</span> <span class="nx">respond</span> <span class="kd">with</span> <span class="sr">/stop`</span><span class="err">,&#x000A;</span>                                        <span class="p">{</span> <span class="nl">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;&#x000A;<span class="nx">fsm</span><span class="p">.</span><span class="nx">ongottext</span> <span class="o">=</span> <span class="p">(</span><span class="nx">event</span><span class="p">,</span> <span class="nx">from</span><span class="p">,</span> <span class="nx">to</span><span class="p">,</span> <span class="nx">message</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">lastMessage</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span>&#x000A;                                        <span class="p">`</span><span class="nx">Echoing</span> <span class="k">for</span> <span class="nx">$</span><span class="p">{</span><span class="nx">name</span><span class="p">}</span><span class="err">:</span> <span class="nx">$</span><span class="p">{</span><span class="nx">message</span><span class="p">.</span><span class="nx">text</span><span class="p">}`,</span>&#x000A;                                        <span class="p">{</span> <span class="na">reply_markup</span><span class="p">:</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span> <span class="na">force_reply</span><span class="p">:</span> <span class="kc">true</span> <span class="p">})</span> <span class="p">})</span>&#x000A;<span class="p">}</span>&#x000A;&#x000A;<span class="cm">/*...*/</span>&#x000A;</code></pre>
+          
+          <p>I omitted some callbacks for brevity, but they&#39;re all pretty similar. That, I believe, is what makes modeling the bot as a FSM
+          so useful. We can separate the transitions (I got this message and I was waiting for this other thing) from the actual behavior
+          once a transition is applied. Our <code>oncancelled</code> callback knows that we were echoing and got a /stop command, that was then
+          cancelled. All it has to do is send the appropriate message back. Not even transition to another state - the FSM will handle it.</p>
+          
+          <p>We defined two new variables that we&#39;ll need across different messages outside of the callbacks - <code>name</code>, where we&#39;ll store
+          the name the user gives us for the current conversation, and the previously seen <code>lastMessage</code> so we can then wait for it to be
+          sent and expect a reply if needed.</p>
+          
+          <p>And that&#39;s all there&#39;s to it! Take a look at the finished code on <a href="https://github.com/julioolvr/telegram-bot-example">Github</a>.
+          Certainly more could be done to the bot. For instance, DRY up those <code>this.client.sendMessage</code> calls, and maybe create a custom
+          class that wraps the FSM and can keep the context needed (in particular, <code>javascript-state-machine</code> has a <code>target</code> option to
+          extend an existing instance of another class and turn it into a FSM). But I think in its current state it already shows how
+          useful it is to model the bot as a FSM, and how clean and readable the code is using <code>async</code>/<code>await</code>.</p>
+          
+          <h2>Further reading</h2>
+          
+          <ul>
+          <li><a href="https://ponyfoo.com/articles/understanding-javascript-async-await">Understanding JavaScript’s async await</a>, by <a href="https://twitter.com/nzgb">@nzgb</a></li>
+          <li><a href="https://github.com/yagop/node-telegram-bot-api"><code>node-telegram-bot-api</code></a></li>
+          <li><a href="https://github.com/jakesgordon/javascript-state-machine"><code>javascript-state-machine</code></a></li>
+          </ul>
+          <div class='comments'>
+            <div id='disqus_thread'></div>
+            <script>
+              var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+              
+              (function() {
+                  var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                  dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+              })();
+            </script>
+            <a class='dsq-brlink' href='http://disqus.com'>
+              comments powered by
+              <span class='logo-disqus'>Disqus</span>
+            </a>
+          </div>
+        </article>
+      </div>
+      <section class='sidebar'>
+        <a href='/'>
+          <img class="sidebar-profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300" />
+        </a>
+        <ul class='sidebar-bio'>
+          <li>
+            <a href='/'>julio olivera</a>
+          </li>
+          <li>software developer</li>
+          <li>
+            <a href='http://github.com/julioolvr' target='blank'>github</a>,
+            <a href='http://www.twitter.com/julioolvr' target='blank'>twitter</a>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script>
+      window.jQuery || document.write('<script src="javascripts/vendor/jquery-1.8.0.min.js"><\/script>')
+    </script>
+    <script src="../../../../javascripts/site.js" type="text/javascript"></script>
+    <script>
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-38383863-1']);
+      _gaq.push(['_setDomainName', 'joliv.me']);
+      _gaq.push(['_trackPageview']);
+      
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+  </body>
+</html>

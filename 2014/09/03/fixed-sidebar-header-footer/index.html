@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
+<html class='no-js'>
+  <head>
+    <meta charset='utf-8'>
+    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
+    <title>Fixed sidebar with fixed header and footer | Julio</title>
+    <meta content='Blog' name='description'>
+    <meta content='width=device-width' name='viewport'>
+    <link href='https://plus.google.com/117723231368654711284/posts' rel='author'>
+    <meta content='summary' name='twitter:card'>
+    <meta content='@julioolvr' name='twitter:site'>
+    <meta content='Fixed sidebar with fixed header and footer' name='twitter:title'>
+    <meta content='These are a couple of ways of constructing a layout that consist of a fixed footer, header, and&#x000A;sidebar. The application we were building had a preview to the left and the fixed sidebar to the&#x000A;right to tweak that preview. The problem to solve is how to give the sidebar the proper height so&#x000A;it will scroll its content correctly.&#x000A;' name='twitter:description'>
+    <script src="../../../../javascripts/vendor/modernizr-2.6.1.min.js" type="text/javascript"></script>
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Roboto:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="../../../../stylesheets/site.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <!--[if lt IE 7]> <p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p> <![endif]-->
+    <div class='content'>
+      <div class='main' role='main'>
+        <article class='post'>
+          <div class='date'>
+            2014/09/03
+          </div>
+          <h1>
+            Fixed sidebar with fixed header and footer
+          </h1>
+          <div class='tags'>
+            <a href="/tags/ie/">#ie</a>, <a href="/tags/css/">#css</a>
+          </div>
+          <p>These are a couple of ways of constructing a layout that consist of a fixed footer, header, and
+          sidebar. The application we were building had a preview to the left and the fixed sidebar to the
+          right to tweak that preview. The problem to solve is how to give the sidebar the proper height so
+          it will scroll its content correctly.</p>
+          
+          <p></p>
+          
+          <p>The first solution makes use of CSS&#39;s <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/calc"><code>calc</code></a>.
+          We want our sidebar&#39;s height to be 100% MINUS the header and footer&#39;s height. It&#39;s not uncommon for
+          the header&#39;s height to be fixed; and given that the footer in this case is fixed too, it probably will
+          also have a fixed height. For this example they are 40px each, so it&#39;s as simple as giving the
+          sidebar a <code>height: calc(100% - 80px)</code>.</p>
+          
+          <p><p data-height="324" data-theme-id="0" data-slug-hash="klvdG" data-default-tab="result" class="codepen">See the Pen <a href="http://codepen.io/julioolvr/pen/klvdG/">klvdG</a> by joliv (<a href="http://codepen.io/julioolvr">@julioolvr</a>) on <a href="http://codepen.io">CodePen</a>.</p><script async src="//codepen.io/assets/embed/ei.js"></script></p>
+          
+          <p>One important advantage of this approach is that, since the sidebar&#39;s real height is what it&#39;s
+          supposed to be (and not bigger as in the following approaches). This is nice because that way, you
+          see the whole scrollbar.</p>
+          
+          <p>If <code>calc</code> can&#39;t be used, another approach is add a padding to the sidebar. Again, very simple, just
+          add a top and bottom padding that are equal to the header and footer&#39;s height, 40px in this example:</p>
+          
+          <p><p data-height="324" data-theme-id="0" data-slug-hash="fLjBy" data-default-tab="result" class="codepen">See the Pen <a href="http://codepen.io/julioolvr/pen/fLjBy/">fLjBy</a> by joliv (<a href="http://codepen.io/julioolvr">@julioolvr</a>) on <a href="http://codepen.io">CodePen</a>.</p><script async src="//codepen.io/assets/embed/ei.js"></script></p>
+          
+          <p>This works in <em>most</em> browsers, although you can see the cropped scrollbar.</p>
+          
+          <p>Now, let&#39;s say you need it to work on another browser. Let&#39;s say that browser is, for instance, IE8.
+          I&#39;d usually rant about IE, but in this case they are not THAT wrong. As mentioned in
+          <a href="http://stackoverflow.com/a/5804795">this</a> StackOverflow answer,
+          <a href="http://www.w3.org/TR/CSS21/visufx.html#overflow">the spec</a> only says that the browser should scroll
+          to show the clipped CONTENT. It makes sense not to consider a padding as content. The result? IE8
+          won&#39;t scroll to show the &ldquo;padding&rdquo; (that would end up behind the footer anyway), and the last of the
+          sidebar&#39;s content ends up hidden by the footer.</p>
+          
+          <p>To solve that problem, the third and final solution involves adding <code>:before</code> and <code>:after</code> elements
+          with the height of the header and footer, and THOSE will be the ones that end up hidden. This has
+          the same issue with the scrollbar as the previous solution, but supports IE8:</p>
+          
+          <p><p data-height="324" data-theme-id="0" data-slug-hash="dtqxE" data-default-tab="result" class="codepen">See the Pen <a href="http://codepen.io/julioolvr/pen/dtqxE/">dtqxE</a> by joliv (<a href="http://codepen.io/julioolvr">@julioolvr</a>) on <a href="http://codepen.io">CodePen</a>.</p><script async src="//codepen.io/assets/embed/ei.js"></script></p>
+          
+          <p>And that&#39;s it, I hope this saves someone some time :)</p>
+          <div class='comments'>
+            <div id='disqus_thread'></div>
+            <script>
+              var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+              
+              (function() {
+                  var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                  dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+              })();
+            </script>
+            <a class='dsq-brlink' href='http://disqus.com'>
+              comments powered by
+              <span class='logo-disqus'>Disqus</span>
+            </a>
+          </div>
+        </article>
+      </div>
+      <section class='sidebar'>
+        <a href='/'>
+          <img class="sidebar-profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300" />
+        </a>
+        <ul class='sidebar-bio'>
+          <li>
+            <a href='/'>julio olivera</a>
+          </li>
+          <li>software developer</li>
+          <li>
+            <a href='http://github.com/julioolvr' target='blank'>github</a>,
+            <a href='http://www.twitter.com/julioolvr' target='blank'>twitter</a>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script>
+      window.jQuery || document.write('<script src="javascripts/vendor/jquery-1.8.0.min.js"><\/script>')
+    </script>
+    <script src="../../../../javascripts/site.js" type="text/javascript"></script>
+    <script>
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-38383863-1']);
+      _gaq.push(['_setDomainName', 'joliv.me']);
+      _gaq.push(['_trackPageview']);
+      
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+  </body>
+</html>
