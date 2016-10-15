@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
+<html class='no-js'>
+  <head>
+    <meta charset='utf-8'>
+    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
+    <title>Generating Swagger documentation for an Express API | Julio</title>
+    <meta content='Blog' name='description'>
+    <meta content='width=device-width' name='viewport'>
+    <link href='https://plus.google.com/117723231368654711284/posts' rel='author'>
+    <meta content='summary' name='twitter:card'>
+    <meta content='@julioolvr' name='twitter:site'>
+    <meta content='Generating Swagger documentation for an Express API' name='twitter:title'>
+    <meta content='In the process of finishing up an Express project, I wanted to leave a nice set of documentation for future users and/or maintainers of the API. I wanted the documentation to live next to the code, and the tooling to generate a nice site from it. Finally I settled for Swagger and used a combination of packages to get the job done.&#x000A;' name='twitter:description'>
+    <meta content='http://joliv.me/2016-10-15-express-api-swagger/swagger-logo.png' name='twitter:image'>
+    <script src="../../../../javascripts/vendor/modernizr-2.6.1.min.js" type="text/javascript"></script>
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Roboto:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Raleway:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="../../../../stylesheets/site.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <!--[if lt IE 7]> <p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p> <![endif]-->
+    <div class='content'>
+      <div class='main' role='main'>
+        <article class='post'>
+          <div class='date'>
+            2016/10/15
+          </div>
+          <h1>
+            Generating Swagger documentation for an Express API
+          </h1>
+          <div class='tags'>
+            <a href="/tags/javascript/">#javascript</a>, <a href="/tags/express/">#express</a>, <a href="/tags/nodejs/">#nodejs</a>, <a href="/tags/swagger/">#swagger</a>
+          </div>
+          <p>In the process of finishing up an <a href="https://expressjs.com/">Express</a> project, I wanted to leave a nice set of documentation for future users and/or maintainers of the API. I wanted the documentation to live next to the code, and the tooling to generate a nice site from it. Finally I settled for <a href="http://swagger.io/">Swagger</a> and used a combination of packages to get the job done.</p>
+          
+          <p></p>
+          
+          <p>There were several things I was expecting from the documentation:</p>
+          
+          <ul>
+          <li>To live in comments next to the code, so it would be easier to remember to update it when needed.</li>
+          <li>To generate a decent enough site for navigating it.</li>
+          <li>To be able to test the API through that generated site.</li>
+          <li>To support making authenticated requests.</li>
+          <li>Avoid owning the code for the UI.</li>
+          </ul>
+          
+          <h2>Parsing the comments</h2>
+          
+          <p>Let&#39;s begin by being able to extract Swagger-formatted documentation from comments in the code. The <a href="https://www.npmjs.com/package/swagger-jsdoc"><code>swagger-jsdoc</code></a> project does exactly that and <strong>generates a big object containing the description of the whole API</strong>. The setup is fairly straightforward if we ignore Swagger specifics:</p>
+          <pre class="highlight javascript"><code><span class="kr">const</span> <span class="nx">swaggerJSDoc</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'swagger-jsdoc'</span><span class="p">);</span>&#x000A;&#x000A;<span class="kr">const</span> <span class="nx">spec</span> <span class="o">=</span> <span class="nx">swaggerJSDoc</span><span class="p">({</span>&#x000A;  <span class="na">swaggerDefinition</span><span class="p">:</span> <span class="p">{</span>&#x000A;    <span class="na">info</span><span class="p">:</span> <span class="p">{</span>&#x000A;      <span class="na">title</span><span class="p">:</span> <span class="s1">'Project title'</span><span class="p">,</span>&#x000A;      <span class="na">version</span><span class="p">:</span> <span class="s1">'1.0.0'</span>&#x000A;    <span class="p">},</span>&#x000A;    <span class="na">produces</span><span class="p">:</span> <span class="p">[</span><span class="s1">'application/json'</span><span class="p">],</span>&#x000A;    <span class="na">consumes</span><span class="p">:</span> <span class="p">[</span><span class="s1">'application/json'</span><span class="p">],</span>&#x000A;    <span class="na">securityDefinitions</span><span class="p">:</span> <span class="p">{</span>&#x000A;      <span class="na">jwt</span><span class="p">:</span> <span class="p">{</span>&#x000A;        <span class="na">type</span><span class="p">:</span> <span class="s1">'apiKey'</span><span class="p">,</span>&#x000A;        <span class="na">name</span><span class="p">:</span> <span class="s1">'Authorization'</span><span class="p">,</span>&#x000A;        <span class="na">in</span><span class="p">:</span> <span class="s1">'header'</span>&#x000A;      <span class="p">}</span>&#x000A;    <span class="p">},</span>&#x000A;    <span class="na">security</span><span class="p">:</span> <span class="p">[</span>&#x000A;      <span class="p">{</span> <span class="na">jwt</span><span class="p">:</span> <span class="p">[]</span> <span class="p">}</span>&#x000A;    <span class="p">]</span>&#x000A;  <span class="p">},</span>&#x000A;  <span class="na">apis</span><span class="p">:</span> <span class="p">[</span>&#x000A;    <span class="s1">'lib/routes/*.js'</span>&#x000A;  <span class="p">]</span>&#x000A;<span class="p">});</span>&#x000A;</code></pre>
+          
+          <p>The generator function receives an options object with two important properties:</p>
+          
+          <ul>
+          <li><code>swaggerDefinition</code> will include Swagger&#39;s global options, which can be found on its <a href="http://swagger.io/specification/">specification</a> under &ldquo;Schema&rdquo;.</li>
+          <li><code>apis</code> contains an array of paths that <code>swagger-jsdoc</code> will try to parse.</li>
+          </ul>
+          
+          <p>I hadn&#39;t used Swagger before starting with this documentation, so I&#39;ll write up about some useful properties I&#39;ve been learning along the way with references to their specs:</p>
+          
+          <ul>
+          <li><code>info</code> contains metadata about the API. Its contents are a Swagger <a href="http://swagger.io/specification/#infoObject">Info Object</a>.</li>
+          <li><code>produces</code> and <code>consumes</code> are array of mime types that the API responds with and accepts, respectively. They can be set for each endpoint, but since the API I&#39;m working on uses mostly JSON it was useful to set them as a global default.</li>
+          <li><code>securityDefinitions</code> specifies the way the user has to authenticate to use the API. <strong>The project uses JWT for authentication</strong> (which I talked about in <a href="/2016/10/01/express-jwt">a previous post</a>) so I set it up according to Swagger&#39;s <a href="http://swagger.io/specification/#securityDefinitionsObject">security definition</a>. It basically means that the API expects a key on the <code>Authorization</code> header.</li>
+          <li><code>security</code>, similar to <code>produces</code> and <code>consumes</code>, can be set per endpoint - but since most of the API requires authentication, I specify it globally and override it when needed. It&#39;s an array of <a href="http://swagger.io/specification/#securityRequirementObject">security requirements objects</a> which for this kind of authentication means just listing the required security definitions.</li>
+          </ul>
+          
+          <h2>Writing the documentation</h2>
+          
+          <p>With that setup, the next step is to write some documentation for the endpoints. <code>swagger-jsdoc</code> doesn&#39;t expect the comments to be placed anywhere specific, as long as they are somewhere in the files included by the paths defined in the <code>apis</code> option, so in this case <strong>I want each endpoint definition to have its documentation right above it</strong>. Let&#39;s go with a fairly comprehensive example:</p>
+          <pre class="highlight javascript"><code><span class="cm">/**&#x000A;  * @swagger&#x000A;  * /users:&#x000A;  *   put:&#x000A;  *     summary: Creates a new user&#x000A;  *     description:&#x000A;  *       "Required roles: `admin`"&#x000A;  *     tags:&#x000A;  *       - Users&#x000A;  *     parameters:&#x000A;  *       - name: body&#x000A;  *         in: body&#x000A;  *         required: true&#x000A;  *         schema:&#x000A;  *           type: object&#x000A;  *           required:&#x000A;  *             - username&#x000A;  *             - password&#x000A;  *           properties:&#x000A;  *             username:&#x000A;  *               type: string&#x000A;  *             password:&#x000A;  *               type: password&#x000A;  *           example: {&#x000A;  *             "username": "someUser",&#x000A;  *             "password": "somePassword"&#x000A;  *           }&#x000A;  *     responses:&#x000A;  *       200:&#x000A;  *         schema:&#x000A;  *           type: object&#x000A;  *           properties:&#x000A;  *             id:&#x000A;  *               type: integer&#x000A;  *             username:&#x000A;  *               type: string&#x000A;  *         examples:&#x000A;  *           application/json: {&#x000A;  *             "id": 1,&#x000A;  *             "username": "someuser"&#x000A;  *           }&#x000A;  *       409:&#x000A;  *         description: When the username is already in use&#x000A;  */</span>&#x000A;<span class="nx">router</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="s1">'/'</span><span class="p">,</span> <span class="nx">restrictToRoles</span><span class="p">(</span><span class="s1">'owner'</span><span class="p">),</span> <span class="nx">createUser</span><span class="p">);</span>&#x000A;</code></pre>
+          
+          <p>Most of the structure is self-explanatory. The YAML structure <strong>begins with the endpoint&#39;s route</strong>, and includes <strong>one or several HTTP verbs</strong>. In this case since I&#39;ll document each verb on a separate comment, it will always have one verb. Then follows a short summary of the endpoint&#39;s purpose and an optional description. I&#39;ve used the <code>description</code> field to document the required roles since Swagger only supports roles (actually scopes) properly when using OAuth authentication. Next we assign <code>tags</code> to the endpoint, which will be used to <strong>group related endpoints in the UI</strong>.</p>
+          
+          <p>Then things get a little bit more complex. <a href="http://swagger.io/specification/#parameterObject">Parameter objects</a> in Swagger include all parameters <strong>from query string parameters to headers, passing through form fields, path parameters and request bodies</strong>. In this case, we expect to receive the data for the new user on a JSON body. Even though there are several fields that our endpoint needs, <strong>they&#39;re all defined inside the single body parameter&#39;s schema</strong>. <a href="http://swagger.io/specification/#schemaObject">The schema object</a> is probably the most complicated part of the Swagger spec that I had to deal with yet, but the basics are simple enough. <strong>You define <a href="http://swagger.io/specification/#dataTypeFormat">a type</a> for it</strong>, and if it&#39;s an object or an array <strong>you include a <code>properties</code> or <code>items</code> property respectively</strong>, describing the shape of its elements. In this case we expect an object with <code>username</code> and <code>password</code>. We could add a <code>description</code> field for them but they are self explanatory.</p>
+          
+          <p><code>responses</code> lists the possible response codes for the endpoint, with an optional <code>schema</code> property to describe the response format. With everything defined, eventually our UI will look similar to this:</p>
+          
+          <p><img alt="Swagger UI" src="../../../../2016-10-15-express-api-swagger/ui-example.png" /></p>
+          
+          <p>See that red warning sign to the right? That means that <strong>the endpoint is secured</strong> (because we defined that to be the default) and clicking on it allows us to set the <code>Authorization</code> header to <strong>make authenticated requests</strong> by clicking on the &ldquo;Try it out!&rdquo; button. Let&#39;s see how to create that UI now.</p>
+          
+          <h2>Generating the documentation site</h2>
+          
+          <p><a href="https://www.npmjs.com/package/swagger-ui-express"><code>swagger-ui-express</code></a> will do just that for us. With a very simple API, given the object with the API definition that <code>swagger-jsdoc</code> created, it can be set up on a route and serve that documentation:</p>
+          <pre class="highlight javascript"><code><span class="kr">const</span> <span class="nx">swaggerUi</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'swagger-ui-express'</span><span class="p">);</span>&#x000A;&#x000A;<span class="cm">/**&#x000A; * Assuming we have a `router` here and the `spec` generated by swagger-jsdoc...&#x000A; */</span>&#x000A;&#x000A;<span class="nx">router</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="s1">'/docs'</span><span class="p">,</span> <span class="nx">swaggerUi</span><span class="p">.</span><span class="nx">serve</span><span class="p">,</span> <span class="nx">swaggerUi</span><span class="p">.</span><span class="nx">setup</span><span class="p">(</span><span class="nx">spec</span><span class="p">));</span>&#x000A;</code></pre>
+          
+          <p>And as simple as that, <strong>our documentation now lives under the <code>/docs</code> endpoint</strong>. All the files for the site are owned by <code>swagger-ui-express</code>, so maintainers of the project don&#39;t have to worry about keeping it updated.</p>
+          
+          <p>I did make a little tweak to that configuration above. By default, the generated site will show the URL of an example JSON spec on its input field at the top. While it still works correctly, I set the route up so that it will add a query parameter to my actual JSON spec. For the sake of consistency, I also added an endpoint to serve the raw JSON spec:</p>
+          <pre class="highlight javascript"><code><span class="cm">/**&#x000A; * Given `spec` and the `router`&#x000A; */</span>&#x000A;<span class="kr">const</span> <span class="nx">swaggerUi</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'swagger-ui-express'</span><span class="p">);</span>&#x000A;&#x000A;<span class="kr">const</span> <span class="nx">docsJsonPath</span> <span class="o">=</span> <span class="s1">'/api-docs.json'</span><span class="p">;</span>&#x000A;<span class="kr">const</span> <span class="nx">swaggerUiHandler</span> <span class="o">=</span> <span class="nx">swaggerUi</span><span class="p">.</span><span class="nx">setup</span><span class="p">(</span><span class="nx">spec</span><span class="p">);</span>&#x000A;&#x000A;<span class="nx">router</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">docsJsonPath</span><span class="p">,</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">res</span><span class="p">.</span><span class="nx">setHeader</span><span class="p">(</span><span class="s1">'Content-Type'</span><span class="p">,</span> <span class="s1">'application/json'</span><span class="p">);</span>&#x000A;  <span class="nx">res</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">spec</span><span class="p">);</span>&#x000A;<span class="p">});</span>&#x000A;&#x000A;<span class="nx">router</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="s1">'/docs'</span><span class="p">,</span> <span class="nx">swaggerUi</span><span class="p">.</span><span class="nx">serve</span><span class="p">,</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">req</span><span class="p">.</span><span class="nx">query</span><span class="p">.</span><span class="nx">url</span><span class="p">)</span> <span class="p">{</span>&#x000A;    <span class="nx">res</span><span class="p">.</span><span class="nx">redirect</span><span class="p">(`</span><span class="sr">/docs</span><span class="se">?</span><span class="sr">url=http:/</span><span class="o">/</span><span class="nx">$</span><span class="p">{</span><span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">host</span><span class="p">}</span><span class="nx">$</span><span class="p">{</span><span class="nx">docsJsonPath</span><span class="p">}`);</span>&#x000A;  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>&#x000A;    <span class="nx">swaggerUiHandler</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">);</span>&#x000A;  <span class="p">}</span>&#x000A;<span class="p">});</span>&#x000A;</code></pre>
+          
+          <p>That <code>url</code> query parameter makes the page show the given URL at the top instead of the default. <strong>And that&#39;s it!</strong> The only thing left is to document every endpoint in the API.</p>
+          
+          <h2>Alternatives</h2>
+          
+          <p>There are two alternatives that I considered throughout the process. The first is <a href="http://apidocjs.com/">apiDoc</a>, which generates the documentation from JSDoc-looking comments. I decided against it because I had a couple of issues with the generated site and also preferred to use something seemingly more standard like Swagger, but it looks like an interesting project.</p>
+          
+          <p>The other is to use <a href="https://github.com/apigee-127/swagger-tools"><code>swagger-tools</code></a>, a project recommended by <code>swagger-jsdoc</code>, to generate the UI based on the spec. While the project works similarly to <code>swagger-ui-express</code>, the version of the Swagger UI it comes with is outdated and doesn&#39;t support header-based authentication. While <code>swagger-ui-express</code>&#39; version is also a bit outdated, it&#39;s new enough to include it. <code>swagger-tools</code> does support defining a custom directory with a different version of Swagger UI, but that would mean checking out the code for the UI in version control and start owning it, which is something I wanted to avoid.</p>
+          
+          <h2>Links</h2>
+          
+          <ul>
+          <li><a href="http://swagger.io/specification/">Swagger Specification</a></li>
+          <li><a href="https://www.npmjs.com/package/swagger-jsdoc"><code>swagger-jsdoc</code></a></li>
+          <li><a href="https://www.npmjs.com/package/swagger-ui-express"><code>swagger-ui-express</code></a></li>
+          </ul>
+          <div class='comments'>
+            <div id='disqus_thread'></div>
+            <script>
+              var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+              
+              (function() {
+                  var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                  dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+              })();
+            </script>
+            <a class='dsq-brlink' href='http://disqus.com'>
+              comments powered by
+              <span class='logo-disqus'>Disqus</span>
+            </a>
+          </div>
+        </article>
+      </div>
+      <section class='sidebar'>
+        <a href='/'>
+          <img class="sidebar-profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300" />
+        </a>
+        <ul class='sidebar-bio'>
+          <li>
+            <a href='/'>julio olivera</a>
+          </li>
+          <li>software developer</li>
+          <li>
+            <a href='http://github.com/julioolvr' target='blank'>github</a>,
+            <a href='http://www.twitter.com/julioolvr' target='blank'>twitter</a>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script>
+      window.jQuery || document.write('<script src="javascripts/vendor/jquery-1.8.0.min.js"><\/script>')
+    </script>
+    <script src="../../../../javascripts/site.js" type="text/javascript"></script>
+    <script>
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-38383863-1']);
+      _gaq.push(['_setDomainName', 'joliv.me']);
+      _gaq.push(['_trackPageview']);
+      
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+  </body>
+</html>
