@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
+<html class='no-js'>
+  <head>
+    <meta charset='utf-8'>
+    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
+    <title>Request-scoped variables in Express | Julio</title>
+    <meta content='Blog' name='description'>
+    <meta content='width=device-width' name='viewport'>
+    <link href='https://plus.google.com/117723231368654711284/posts' rel='author'>
+    <meta content='summary' name='twitter:card'>
+    <meta content='@julioolvr' name='twitter:site'>
+    <meta content='Request-scoped variables in Express' name='twitter:title'>
+    <meta content="One common requirement in web applications is keeping track of the currently logged in user throughout the execution of a request. While this is fairly simple to do in web servers where each request has its own execution environment (be it a thread or a process), Node's single-process single-thread model makes it less straightforward - but it can be achieved with the help of continuation-local-storage.&#x000A;" name='twitter:description'>
+    <meta name='twitter:image'>
+    <meta name='twitter:label1' value='Reading time'>
+    <meta name='twitter:data1' value='3 min read'>
+    <script src="../../../../javascripts/vendor/modernizr-2.6.1.min.js" type="text/javascript"></script>
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Roboto:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="http://fonts.googleapis.com/css?family=Raleway:400,100,300" rel="stylesheet" type="text/css" />
+    <link href="../../../../stylesheets/site.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <!--[if lt IE 7]> <p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p> <![endif]-->
+    <div class='content'>
+      <div class='main' role='main'>
+        <article class='post'>
+          <div class='date'>
+            2016/10/29
+          </div>
+          <h1>
+            Request-scoped variables in Express
+          </h1>
+          <div class='tags'>
+            <a href="/tags/javascript/">#javascript</a>, <a href="/tags/express/">#express</a>, <a href="/tags/nodejs/">#nodejs</a>
+          </div>
+          <p>One common requirement in web applications is keeping track of the currently logged in user throughout the execution of a request. While this is fairly simple to do in web servers where each request has its own execution environment (be it a thread or a process), Node&#39;s single-process single-thread model makes it less straightforward - but it can be achieved with the help of <a href="https://github.com/othiym23/node-continuation-local-storage"><code>continuation-local-storage</code></a>.</p>
+          
+          <p></p>
+          
+          <p>Say we have a secure Express application. At some point, a middleware is going to authenticate the user and save it somewhere for future use (again, I&#39;m going to refer to my <a href="/2016/10/01/express-jwt">earlier post about using JWT with Express</a> since I had to implement this on the same app). In this case, after authentication is done, we&#39;ll have the user available on <code>req.user</code>. Good so far, but the request object is only available to middlewares and route handlers, and to use it further down the chain we&#39;d need to pass it all the way down through function parameters. In some cases this might make sense, when conceptually each of those functions is related to the user executing them. But here the user was needed to make a permissions check on the opposite boundary of the application - before making a request to an external system, to make sure they had the right permissions to do it.</p>
+          
+          <p>So if passing the user as a parameter is not conceptually sound, then how do we get it all the way through to the code making the requests to the external service? Here is where <code>continuation-local-storage</code> helps. Let&#39;s see first how to use it and then try to understand exactly how it&#39;s doing it. First, we need to create a namespaces in which to store our data. Even though the namespace will be the same for every request, <strong>the values will be scoped for each chain of functions</strong>.</p>
+          <pre class="highlight javascript"><code><span class="kr">const</span> <span class="p">{</span> <span class="nx">createNamespace</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'continuation-local-storage'</span><span class="p">)</span>&#x000A;&#x000A;<span class="kr">const</span> <span class="nx">session</span> <span class="o">=</span> <span class="nx">createNamespace</span><span class="p">(</span><span class="s1">'request'</span><span class="p">)</span>&#x000A;&#x000A;<span class="c1">// Assuming we have our express app in `app`</span>&#x000A;<span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">((</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">session</span><span class="p">.</span><span class="nx">run</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="nx">next</span><span class="p">())</span>&#x000A;<span class="p">})</span>&#x000A;&#x000A;<span class="c1">// And once we have authenticated the user</span>&#x000A;<span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">((</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>&#x000A;  <span class="nx">session</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s1">'currentUser'</span><span class="p">,</span> <span class="nx">req</span><span class="p">.</span><span class="nx">user</span><span class="p">)</span>&#x000A;  <span class="nx">next</span><span class="p">()</span>&#x000A;<span class="p">})</span>&#x000A;</code></pre>
+          
+          <p>See that I called the namespace <code>request</code>. <code>continuation-local-storage</code> isn&#39;t really specific for a web server environment - <strong>it works for any chain of functions calling each other</strong> - so I gave it a name representing exactly what it was being used for in this case.</p>
+          
+          <p>Then we have to define a couple of middlewares. For <code>continuation-local-storage</code> to work, <strong>it needs to wrap the chain of function calls on the namespace&#39;s <code>#run</code> method</strong>. That means that that first middleware has to be defined as early as possible in the middleware chain. <strong>It&#39;s only inside the call stack of that method that values can be set or retrieved from the namespace</strong>.</p>
+          
+          <p>The second middleware, once the user is available somewhere (<code>req.user</code> in this case), sets it in the namespace. And that&#39;s all that&#39;s needed for the setup.</p>
+          
+          <p>The usage is way simpler since we&#39;ll already be inside a <code>#run</code> chain, so we just have to get a reference to the namespace and fetch the value from it:</p>
+          <pre class="highlight javascript"><code><span class="kr">const</span> <span class="p">{</span> <span class="nx">getNamespace</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'continuation-local-storage'</span><span class="p">)</span>&#x000A;&#x000A;<span class="kd">function</span> <span class="nx">getCurrentUser</span><span class="p">()</span> <span class="p">{</span>&#x000A;  <span class="k">return</span> <span class="nx">getNamespace</span><span class="p">(</span><span class="s1">'request'</span><span class="p">).</span><span class="nx">get</span><span class="p">(</span><span class="s1">'currentUser'</span><span class="p">)</span>&#x000A;<span class="p">}</span>&#x000A;</code></pre>
+          
+          <p>As long as <code>getCurrentUser</code> can be traced all the way back to the <code>#run</code> method, then everything put on the namespace will be available.</p>
+          
+          <h2>How does it work?</h2>
+          
+          <p>Personally I was curious on how they achieved this behavior. How do they keep variables across functions calling functions calling functions, many of those asynchronous - going to the OS and back?</p>
+          
+          <p>The answer is <a href="https://github.com/othiym23/async-listener"><code>async-listener</code></a>. <code>async-listener</code> is a package which allows us to set callbacks for the lifecycle of asynchronous operations. <strong>So when an asynchronous operation is queued, when it fails, and right before or after our callbacks are called, we can add custom behavior</strong>. <code>continuation-local-storage</code> uses it to keep track of each execution context and make the namespace values available again once we&#39;re back from the asynchronous operation.</p>
+          
+          <p>Then, how does <code>async-listener</code> does it? The answer is simple, although the implementation is fairly complex: <strong>wrap every asynchronous function in node to be able to provide those callbacks</strong>. You can <a href="https://github.com/othiym23/async-listener/blob/master/index.js">take a look at the code to see how they did it on each case</a>, with some of the solutions being quite involved (see how they wrap promises!).</p>
+          
+          <h2>Links</h2>
+          
+          <ul>
+          <li><a href="https://github.com/othiym23/node-continuation-local-storage"><code>continuation-local-storage</code></a></li>
+          <li><a href="https://github.com/othiym23/async-listener"><code>async-listener</code></a></li>
+          </ul>
+          <div class='comments'>
+            <div id='disqus_thread'></div>
+            <script>
+              var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+              
+              (function() {
+                  var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                  dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+              })();
+            </script>
+            <a class='dsq-brlink' href='http://disqus.com'>
+              comments powered by
+              <span class='logo-disqus'>Disqus</span>
+            </a>
+          </div>
+        </article>
+      </div>
+      <section class='sidebar'>
+        <a href='/'>
+          <img class="sidebar-profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300" />
+        </a>
+        <ul class='sidebar-bio'>
+          <li>
+            <a href='/'>julio olivera</a>
+          </li>
+          <li>software developer</li>
+          <li>
+            <a href='http://github.com/julioolvr' target='blank'>github</a>,
+            <a href='http://www.twitter.com/julioolvr' target='blank'>twitter</a>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
+    <script>
+      window.jQuery || document.write('<script src="javascripts/vendor/jquery-1.8.0.min.js"><\/script>')
+    </script>
+    <script src="../../../../javascripts/site.js" type="text/javascript"></script>
+    <script>
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-38383863-1']);
+      _gaq.push(['_setDomainName', 'joliv.me']);
+      _gaq.push(['_trackPageview']);
+      
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+  </body>
+</html>
