@@ -1,123 +1,59 @@
-<!DOCTYPE html>
-<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
-<html class='no-js'>
-  <head>
-    <meta charset='utf-8'>
-    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
-    <title>Recreate ElasticSearch index for integration testing. | Julio</title>
-    <meta content='Blog' name='description'>
-    <meta content='width=device-width' name='viewport'>
-    <link href='https://plus.google.com/117723231368654711284/posts' rel='author'>
-    <meta content='summary' name='twitter:card'>
-    <meta content='@julioolvr' name='twitter:site'>
-    <meta content='Recreate ElasticSearch index for integration testing.' name='twitter:title'>
-    <meta content="I fought against this for most of last week so now that I solved it I figured I could share it with the rest of the world (not that I had much fun running tons of Jenkins' builds to see if it was fixed…).&#x000A;" name='twitter:description'>
-    <meta name='twitter:image'>
-    <meta name='twitter:label1' value='Reading time'>
-    <meta name='twitter:data1' value='2 min read'>
-    <script src="../../../../javascripts/vendor/modernizr-2.6.1.min.js" type="text/javascript"></script>
-    <link href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif" rel="stylesheet" type="text/css" />
-    <link href="http://fonts.googleapis.com/css?family=Roboto:400,100,300" rel="stylesheet" type="text/css" />
-    <link href="http://fonts.googleapis.com/css?family=Raleway:400,100,300" rel="stylesheet" type="text/css" />
-    <link href="../../../../stylesheets/site.css" rel="stylesheet" type="text/css" />
-  </head>
-  <body>
-    <!--[if lt IE 7]> <p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p> <![endif]-->
-    <div class='content'>
-      <section class='sidebar'>
-        <a href='/'>
-          <img class="sidebar-profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300" />
-        </a>
-        <ul class='sidebar-bio'>
-          <li>
-            <a href='/'>julio olivera</a>
-          </li>
-          <li>software developer</li>
-          <li>
-            <a href='http://github.com/julioolvr' target='blank'>github</a>,
-            <a href='http://www.twitter.com/julioolvr' target='blank'>twitter</a>
-          </li>
-        </ul>
-      </section>
-      <div class='main' role='main'>
-        <article class='post'>
-          <div class='date'>
-            2013/10/07
-          </div>
-          <h1>
-            Recreate ElasticSearch index for integration testing.
-          </h1>
-          <div class='tags'>
-            <a href="/tags/elasticsearch/">#elasticsearch</a>, <a href="/tags/tire/">#tire</a>, <a href="/tags/ruby/">#ruby</a>, <a href="/tags/rails/">#rails</a>
-          </div>
-          <p>I fought against this for most of last week so now that I solved it I figured I could share it with the rest of the world (not that I had much fun running tons of Jenkins&#39; builds to see if it was fixed&hellip;).</p>
-          
-          <p></p>
-          
-          <p>So, we have a Rails app that uses ElasticSearch for a few features. There&#39;s a single index that we query, and for integration test purposes we create a fake test index so we can go through the whole stack. We are using <a href="https://github.com/karmi/retire">Tire</a> with its <code>Persistence</code> module, so in our <code>spec_helper.rb</code> (asuming we have a model called <code>Book</code>) we had something along the lines of:</p>
-          <pre class="highlight ruby"><code><span class="n">before</span><span class="p">(</span><span class="ss">:each</span><span class="p">)</span> <span class="k">do</span>&#x000A;  <span class="no">Book</span><span class="p">.</span><span class="nf">index</span><span class="p">.</span><span class="nf">delete</span>&#x000A;  <span class="no">Book</span><span class="p">.</span><span class="nf">create_elasticsearch_index</span>&#x000A;<span class="k">end</span>&#x000A;</code></pre>
-          
-          <p>There was some more unrelated stuff in there (like deleting the index after the whole suite was completed, or using <a href="https://github.com/bblimke/webmock">Webmock</a> to ensure that we are not making any unwanted HTTP requests), the only detail that I want to mention is that you might want to wait for a <a href="https://github.com/karmi/retire/issues/537#issuecomment-11124205">yellow status</a> before each test to avoid &ldquo;No active shards&rdquo; errors.</p>
-          
-          <p>Back to the problem at hand, nothing seems wrong with this, but then we started having random 404 errors because the index was missing during the examples. But it should be there, right? It should be created right after it was deleted.</p>
-          
-          <p>I enabled debugging on Tire&#39;s config, and I found something like the following:</p>
-          <pre class="highlight shell"><code><span class="c"># 2013-10-04 09:25:05:839 [DELETE] ("test_index")</span>&#x000A;<span class="c">#</span>&#x000A;curl -X DELETE http://some-server:9200/test_index&#x000A;&#x000A;<span class="c"># 2013-10-04 09:25:05:840 [200]</span>&#x000A;<span class="c">#</span>&#x000A;<span class="c"># {</span>&#x000A;<span class="c">#   "ok": true,</span>&#x000A;<span class="c">#   "acknowledged": true</span>&#x000A;<span class="c"># }</span>&#x000A;&#x000A;<span class="c"># 2013-10-04 09:25:05:852 [HEAD] ("test_index")</span>&#x000A;<span class="c">#</span>&#x000A;curl -I <span class="s2">"http://some-server:9200/test_index"</span>&#x000A;&#x000A;<span class="c"># 2013-10-04 09:25:05:852 [200]</span>&#x000A;</code></pre>
-          
-          <p>So, right after the <code>DELETE</code> request, there&#39;s a <code>HEAD</code> request against the same index, which returns 200.</p>
-          
-          <p>What.</p>
-          
-          <p>First of all, the <code>HEAD</code> request comes from Tire doing <a href="http://rubydoc.info/github/karmi/tire/master/Tire/Model/Indexing/ClassMethods#create_elasticsearch_index-instance_method">an existence check before creating the index</a>. Makes sense. But why would it return 200 if the <code>DELETE</code> request that came just before that one returned a 200 ok everything is perfect response?</p>
-          
-          <p>Well, help comes from <a href="http://stackoverflow.com/questions/19182682/elasticsearch-async-delete-200-just-after-deleting-index-in-rails-app/19224515">the great people at StackOverflow</a>. First comment: turns out <a href="http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-http.html">the entire ES HTTP API is asynchronous</a>. So yeah, I get the 200 for the <code>DELETE</code> request but the index wasn&#39;t necessarily deleted yet. So, what do we do? Follow the suggestion at the accepted answer for that question: poll ES until we are sure that the index was deleted.</p>
-          
-          <p>So, in our Tire initializer, I added:</p>
-          <pre class="highlight ruby"><code><span class="no">Tire</span><span class="o">::</span><span class="no">Index</span><span class="p">.</span><span class="nf">class_eval</span> <span class="k">do</span>&#x000A;  <span class="k">def</span> <span class="nf">ensure_deleted</span>&#x000A;    <span class="mi">5</span><span class="p">.</span><span class="nf">times</span> <span class="k">do</span>&#x000A;      <span class="k">return</span> <span class="kp">true</span> <span class="k">unless</span> <span class="n">exists?</span>&#x000A;    <span class="k">end</span>&#x000A;&#x000A;    <span class="k">raise</span> <span class="s2">"The ElasticSearch index wasn't successfully deleted."</span>&#x000A;  <span class="k">end</span>&#x000A;<span class="k">end</span>&#x000A;</code></pre>
-          
-          <p>And then modified the hooks to look like:</p>
-          <pre class="highlight ruby"><code><span class="n">before</span><span class="p">(</span><span class="ss">:each</span><span class="p">)</span> <span class="k">do</span>&#x000A;  <span class="no">Book</span><span class="p">.</span><span class="nf">index</span><span class="p">.</span><span class="nf">ensure_deleted</span>&#x000A;  <span class="no">Book</span><span class="p">.</span><span class="nf">create_elasticsearch_index</span>&#x000A;<span class="k">end</span>&#x000A;&#x000A;<span class="n">after</span><span class="p">(</span><span class="ss">:each</span><span class="p">)</span> <span class="k">do</span>&#x000A;  <span class="no">Book</span><span class="p">.</span><span class="nf">index</span><span class="p">.</span><span class="nf">delete</span>&#x000A;<span class="k">end</span>&#x000A;</code></pre>
-          
-          <p>So basically, we check five times to see if the index was deleted. I didn&#39;t show the whole log, but in all the failures only one request returned the fake 200 after the <code>DELETE</code>, the next one always returned 404 correctly, so limiting it to 5 tries made sense.</p>
-          
-          <p>That&#39;s it! I hope this can save someone some time and the anger against the world that I went through.</p>
-          <div class='comments'>
-            <div id='disqus_thread'></div>
-            <script>
-              var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
-              
-              (function() {
-                  var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-                  dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
-                  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-              })();
-            </script>
-            <a class='dsq-brlink' href='http://disqus.com'>
-              comments powered by
-              <span class='logo-disqus'>Disqus</span>
-            </a>
-          </div>
-        </article>
-      </div>
-    </div>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js" type="text/javascript"></script>
-    <script>
-      window.jQuery || document.write('<script src="javascripts/vendor/jquery-1.8.0.min.js"><\/script>')
-    </script>
-    <script src="../../../../javascripts/site.js" type="text/javascript"></script>
-    <script>
-      var _gaq = _gaq || [];
-      _gaq.push(['_setAccount', 'UA-38383863-1']);
-      _gaq.push(['_setDomainName', 'joliv.me']);
-      _gaq.push(['_trackPageview']);
-      
-      (function() {
-        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-      })();
-    </script>
-  </body>
-</html>
+<!DOCTYPE html><head><title>Recreate ElasticSearch index for integration testing. | Julio</title><meta charset="utf-8"><link rel="shortcut icon" type="image/png" href="/favicon.png"><link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="/css/highlight-ocean.css"><link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Open+Sans|Bree+Serif"><link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:400,100,300"><link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Raleway:400,100,300"><script async src="//codepen.io/assets/embed/ei.js"></script></head><body><div class="container"><header><a href="/"><img class="profile-pic" src="http://www.gravatar.com/avatar/a81ad64d19c864be3c478b761f4b4817?s=300"></a><ul class="bio"><li><a href="/">julio olivera</a></li><li>software developer</li><li><a href="http://github.com/julioolvr">github</a>,
+<a href="http://www.twitter.com/julioolvr">twitter</a></li></ul></header><main><article class="post"><time datetime="2013-10-07T00:00:00.000Z">2013/10/06</time><h1>Recreate ElasticSearch index for integration testing.</h1><div class="tags"><a href="/tags/elasticsearch">#elasticsearch</a>,
+<a href="/tags/tire">#tire</a>,
+<a href="/tags/ruby">#ruby</a>,
+<a href="/tags/rails">#rails</a></div><p>I fought against this for most of last week so now that I solved it I figured I could share it with the rest of the world (not that I had much fun running tons of Jenkins' builds to see if it was fixed...).</p>
+<p>So, we have a Rails app that uses ElasticSearch for a few features. There's a single index that we query, and for integration test purposes we create a fake test index so we can go through the whole stack. We are using <a href="https://github.com/karmi/retire">Tire</a> with its <code>Persistence</code> module, so in our <code>spec_helper.rb</code> (asuming we have a model called <code>Book</code>) we had something along the lines of:</p>
+<pre class="hljs"><code>before(<span class="hljs-symbol">:each</span>) <span class="hljs-keyword">do</span>
+  Book.index.delete
+  Book.create_elasticsearch_index
+<span class="hljs-keyword">end</span>
+</code></pre>
+<p>There was some more unrelated stuff in there (like deleting the index after the whole suite was completed, or using <a href="https://github.com/bblimke/webmock">Webmock</a> to ensure that we are not making any unwanted HTTP requests), the only detail that I want to mention is that you might want to wait for a <a href="https://github.com/karmi/retire/issues/537#issuecomment-11124205">yellow status</a> before each test to avoid &quot;No active shards&quot; errors.</p>
+<p>Back to the problem at hand, nothing seems wrong with this, but then we started having random 404 errors because the index was missing during the examples. But it should be there, right? It should be created right after it was deleted.</p>
+<p>I enabled debugging on Tire's config, and I found something like the following:</p>
+<pre class="hljs"><code><span class="hljs-comment"># 2013-10-04 09:25:05:839 [DELETE] ("test_index")</span>
+<span class="hljs-comment">#</span>
+curl -X DELETE http://some-server:9200/test_index
+
+<span class="hljs-comment"># 2013-10-04 09:25:05:840 [200]</span>
+<span class="hljs-comment">#</span>
+<span class="hljs-comment"># {</span>
+<span class="hljs-comment">#   "ok": true,</span>
+<span class="hljs-comment">#   "acknowledged": true</span>
+<span class="hljs-comment"># }</span>
+
+<span class="hljs-comment"># 2013-10-04 09:25:05:852 [HEAD] ("test_index")</span>
+<span class="hljs-comment">#</span>
+curl -I <span class="hljs-string">"http://some-server:9200/test_index"</span>
+
+<span class="hljs-comment"># 2013-10-04 09:25:05:852 [200]</span>
+</code></pre>
+<p>So, right after the <code>DELETE</code> request, there's a <code>HEAD</code> request against the same index, which returns 200.</p>
+<p>What.</p>
+<p>First of all, the <code>HEAD</code> request comes from Tire doing <a href="http://rubydoc.info/github/karmi/tire/master/Tire/Model/Indexing/ClassMethods#create_elasticsearch_index-instance_method">an existence check before creating the index</a>. Makes sense. But why would it return 200 if the <code>DELETE</code> request that came just before that one returned a 200 ok everything is perfect response?</p>
+<p>Well, help comes from <a href="http://stackoverflow.com/questions/19182682/elasticsearch-async-delete-200-just-after-deleting-index-in-rails-app/19224515">the great people at StackOverflow</a>. First comment: turns out <a href="http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-http.html">the entire ES HTTP API is asynchronous</a>. So yeah, I get the 200 for the <code>DELETE</code> request but the index wasn't necessarily deleted yet. So, what do we do? Follow the suggestion at the accepted answer for that question: poll ES until we are sure that the index was deleted.</p>
+<p>So, in our Tire initializer, I added:</p>
+<pre class="hljs"><code>Tire::Index.class_eval <span class="hljs-keyword">do</span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">ensure_deleted</span></span>
+    <span class="hljs-number">5</span>.times <span class="hljs-keyword">do</span>
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span> <span class="hljs-keyword">unless</span> exists?
+    <span class="hljs-keyword">end</span>
+
+    raise <span class="hljs-string">"The ElasticSearch index wasn't successfully deleted."</span>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span>
+</code></pre>
+<p>And then modified the hooks to look like:</p>
+<pre class="hljs"><code>before(<span class="hljs-symbol">:each</span>) <span class="hljs-keyword">do</span>
+  Book.index.ensure_deleted
+  Book.create_elasticsearch_index
+<span class="hljs-keyword">end</span>
+
+after(<span class="hljs-symbol">:each</span>) <span class="hljs-keyword">do</span>
+  Book.index.delete
+<span class="hljs-keyword">end</span>
+</code></pre>
+<p>So basically, we check five times to see if the index was deleted. I didn't show the whole log, but in all the failures only one request returned the fake 200 after the <code>DELETE</code>, the next one always returned 404 correctly, so limiting it to 5 tries made sense.</p>
+<p>That's it! I hope this can save someone some time and the anger against the world that I went through.</p>
+</article></main></div></body>
