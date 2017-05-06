@@ -11,4 +11,10 @@
 <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">bug</span>(<span class="hljs-params">bug</span>) </span>{}
 </code></pre>
 <p>No syntax error there! But when there <em>is</em> a syntax error, PhantomJS will only say so and won't specify what the error is. This can be kind of annoying when your automasted tests use Phantom and fail miserably while the app works fine on your browser. One good way to find the cause for these kind of bugs is that PhantomJS behaves very similar to Safari, and this specific bug is also present there. So if you happen to develop on Safari then you'll see it before it gets to Phantom, but if you don't it's a nice trick to remember the next time you have to debug a Phantom-specific bug.</p>
-</article></main></div></body>
+<div class="comments"><div id="disqus_thread"></div><script>var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><a class="dsq-brlink" href="http://disqus.com"><comments>powered by</comments><span class="logo-disqus">Disqus</span></a></div></article></main></div></body>

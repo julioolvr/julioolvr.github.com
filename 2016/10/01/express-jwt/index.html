@@ -88,4 +88,10 @@ app.use(jwt({ <span class="hljs-attr">secret</span>: process.env.AUTHENTICATION_
 <p>The middleware will (by default) look for the token in the <code>Authorization</code> header - it will expect the requests to have a header looking like <code>Authorization: Bearer token1234</code> where <code>token1234</code> is the actual token, and will store the user in <code>req.user</code>. If the token can't be decoded, or is invalid according to the app's secret, the request will fail. You'll want this middleware to execute as early as possible for each request so that the user is available as soon as possible or, if the token is invalid, so that the request will fail quickly.</p>
 <hr>
 <p>With that done, we already provided users with a way to get authentication tokens, and to use those tokens to make requests to our API. I want to stress again that I'm not an expert on authentication by any means, and this is just what I've learned while doing some research for implementing a specific use case - but I hope it can be useful to someone else at least as a first take on how such a feature can be implemented.</p>
-</article></main></div></body>
+<div class="comments"><div id="disqus_thread"></div><script>var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><a class="dsq-brlink" href="http://disqus.com"><comments>powered by</comments><span class="logo-disqus">Disqus</span></a></div></article></main></div></body>

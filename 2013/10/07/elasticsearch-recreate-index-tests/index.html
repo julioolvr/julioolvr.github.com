@@ -56,4 +56,10 @@ after(<span class="hljs-symbol">:each</span>) <span class="hljs-keyword">do</spa
 </code></pre>
 <p>So basically, we check five times to see if the index was deleted. I didn't show the whole log, but in all the failures only one request returned the fake 200 after the <code>DELETE</code>, the next one always returned 404 correctly, so limiting it to 5 tries made sense.</p>
 <p>That's it! I hope this can save someone some time and the anger against the world that I went through.</p>
-</article></main></div></body>
+<div class="comments"><div id="disqus_thread"></div><script>var disqus_shortname = 'julioblog'; // required: replace example with your forum shortname
+
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><a class="dsq-brlink" href="http://disqus.com"><comments>powered by</comments><span class="logo-disqus">Disqus</span></a></div></article></main></div></body>
