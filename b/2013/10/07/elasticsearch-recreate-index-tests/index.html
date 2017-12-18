@@ -1,0 +1,87 @@
+<!DOCTYPE html><html><head><meta charSet="utf-8" class="next-head"/><meta name="viewport" content="width=device-width, initial-scale=1" class="next-head"/><link rel="icon" type="image/png" href="/static/favicon-152.png" class="next-head"/><title class="next-head">Recreate ElasticSearch index for integration testing</title><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2013/10/07/elasticsearch-recreate-index-tests.js" as="script"/><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js" as="script"/><link rel="preload" href="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" as="script"/><style id="__jsx-2227194078">.myself.jsx-2227194078{text-align:center;}
+.name.jsx-2227194078{text-transform:uppercase;margin-bottom:0;}
+.name.jsx-2227194078 a.jsx-2227194078{color:#e3e3e3;}
+.links.jsx-2227194078{margin-top:0;}
+.separator.jsx-2227194078{margin:0 0.2em;}
+.show-on-small.jsx-2227194078{display:none;}
+@media (max-width:440px){.show-on-small.jsx-2227194078{display:initial;}.hide-on-small.jsx-2227194078{display:none;}}</style><style id="__jsx-972330820">h1.jsx-972330820{margin-top:0;}
+.date.jsx-972330820{margin-top:2em;color:#808080;}
+h1.has-multiple-langs.jsx-972330820{margin-bottom:0;}
+.post.jsx-972330820{margin-bottom:3em;}
+.post.jsx-972330820 p{margin:2em 0;-webkit-letter-spacing:0.05em;-moz-letter-spacing:0.05em;-ms-letter-spacing:0.05em;letter-spacing:0.05em;line-height:1.7em;font-family:'Roboto',sans-serif;}
+.post.jsx-972330820 code{font-family:'Roboto Mono',monospace;color:#a7fe92;}
+.post.jsx-972330820 pre{max-width:100%;overflow-x:scroll;}
+.post.jsx-972330820 a code{color:#af3eff;}
+.post.jsx-972330820 b{color:white;}
+.post.jsx-972330820 img{width:100%;}</style><style id="__jsx-402751169">.root.jsx-402751169{;}</style><style id="__jsx-393116216">.root.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;}
+header.jsx-393116216{border-bottom:1px solid #242424;width:100%;}
+.base-layout.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;height:100vh;}
+.container.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:center;-webkit-justify-content:center;-ms-flex-pack:center;justify-content:center;-webkit-align-items:center;-webkit-box-align:center;-ms-flex-align:center;align-items:center;-webkit-flex:2;-ms-flex:2;flex:2;}
+.content.jsx-393116216{width:100%;max-height:100%;padding:0 2.5em;}
+@media (min-width:45em){.content.jsx-393116216{width:45em;}}</style><style id="__jsx-3457075783">@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:300,700|Roboto:300,700');
+*{box-sizing:border-box;}
+::selection{background-color:#16146c;}
+::-moz-selection{background-color:#16146c;}
+html,body{margin:0;padding:0;}
+body{background-color:#0e0e0e;color:#e3e3e3;font-family:'Roboto Mono',monospace;}
+a{color:#af3eff;text-decoration:none;}
+a:hover{text-decoration:underline;}
+img{max-width:100%;}</style></head><body><div><div id="__next"><div data-reactroot=""><div class="jsx-3457075783"><div class="jsx-393116216 jsx-402751169 root"><header class="jsx-393116216 jsx-402751169"><div class="jsx-2227194078 myself"><p class="jsx-2227194078 name"><a class="jsx-2227194078" href="/">Julio Olivera</a></p><p class="jsx-2227194078 links"><a class="jsx-2227194078" href="/me/">me</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/b/">blog</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/things/">things</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/talks/">talks</a><span class="jsx-2227194078 hide-on-small separator">|</span><br class="jsx-2227194078 show-on-small"/><a href="https://github.com/julioolvr" class="jsx-2227194078">github</a><span class="jsx-2227194078 separator">|</span><a href="https://twitter.com/julioolvr" class="jsx-2227194078">twitter</a></p></div></header><div class="jsx-393116216 jsx-402751169 container"><div class="jsx-393116216 jsx-402751169 content"><div class="jsx-972330820 date"><time class="jsx-972330820">2013-10-07</time></div><h1 class="jsx-972330820 ">Recreate ElasticSearch index for integration testing</h1><div class="jsx-972330820 post"><div><p>I fought against this for most of last week so now that I solved it I figured I could share it with the rest of the world (not that I had much fun running tons of Jenkins&#x27; builds to see if it was fixed...).</p><p>So, we have a Rails app that uses ElasticSearch for a few features. There&#x27;s a single index that we query, and for integration test purposes we create a fake test index so we can go through the whole stack. We are using<!-- --> <a href="https://github.com/karmi/retire">Tire</a> with its<!-- --> <code>Persistence</code> module, so in our<!-- --> <code>spec_helper.rb</code> (asuming we have a model called<!-- --> <code>Book</code>) we had something along the lines of:</p><pre>
+
+before(:each) do
+  Book.index.delete
+  Book.create_elasticsearch_index
+end
+</pre><p>There was some more unrelated stuff in there (like deleting the index after the whole suite was completed, or using<!-- --> <a href="https://github.com/bblimke/webmock">Webmock</a> to ensure that we are not making any unwanted HTTP requests), the only detail that I want to mention is that you might want to wait for a<!-- --> <a href="https://github.com/karmi/retire/issues/537#issuecomment-11124205">yellow status</a> <!-- -->before each test to avoid &quot;No active shards&quot; errors.</p><p>Back to the problem at hand, nothing seems wrong with this, but then we started having random 404 errors because the index was missing during the examples. But it should be there, right? It should be created right after it was deleted.</p><p>I enabled debugging on Tire&#x27;s config, and I found something like the following:</p><pre>
+
+# 2013-10-04 09:25:05:839 [DELETE] (&quot;test_index&quot;)
+#
+curl -X DELETE http://some-server:9200/test_index&lt;/p&gt;
+
+# 2013-10-04 09:25:05:840 [200]
+#
+# {
+#   &quot;ok&quot;: true,
+#   &quot;acknowledged&quot;: true
+# }
+
+# 2013-10-04 09:25:05:852 [HEAD] (&quot;test_index&quot;)
+#
+curl -I &quot;http://some-server:9200/test_index&quot;
+
+# 2013-10-04 09:25:05:852 [200]
+</pre><p>So, right after the <code>DELETE</code> request, there&#x27;s a<!-- --> <code>HEAD</code> request against the same index, which returns 200.</p><p>What.</p><p>First of all, the <code>HEAD</code> request comes from Tire doing<!-- --> <a href="http://rubydoc.info/github/karmi/tire/master/Tire/Model/Indexing/ClassMethods#create_elasticsearch_index-instance_method">an existence check before creating the index</a>. Makes sense. But why would it return 200 if the<!-- --> <code>DELETE</code> request that came just before that one returned a 200 ok everything is perfect response?</p><p>Well, help comes from<!-- --> <a href="http://stackoverflow.com/questions/19182682/elasticsearch-async-delete-200-just-after-deleting-index-in-rails-app/19224515">the great people at StackOverflow</a>. First comment: turns out<!-- --> <a href="http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-http.html">the entire ES HTTP API is asynchronous</a>. So yeah, I get the 200 for the <code>DELETE</code> request but the index wasn&#x27;t necessarily deleted yet. So, what do we do? Follow the suggestion at the accepted answer for that question: poll ES until we are sure that the index was deleted.</p><p>So, in our Tire initializer, I added:</p><pre>
+
+Tire::Index.class_eval do
+  def ensure_deleted
+    5.times do
+      return true unless exists?
+    end
+
+    raise &quot;The ElasticSearch index wasn&#x27;t successfully deleted.&quot;
+  end
+end
+          </pre><p>And then modified the hooks to look like:</p><pre>
+
+before(:each) do
+  Book.index.ensure_deleted
+  Book.create_elasticsearch_index
+end
+
+after(:each) do
+  Book.index.delete
+end
+            </pre><p>So basically, we check five times to see if the index was deleted. I didn&#x27;t show the whole log, but in all the failures only one request returned the fake 200 after the <code>DELETE</code>, the next one always returned 404 correctly, so limiting it to 5 tries made sense.</p><p>That&#x27;s it! I hope this can save someone some time and the anger against the world that I went through.</p></div></div></div></div></div></div></div></div><div id="__next-error"></div></div><div><script>
+          __NEXT_DATA__ = {"props":{},"pathname":"/b/2013/10/07/elasticsearch-recreate-index-tests","query":{},"buildId":"1b6614a5-ebac-4701-b763-37328e736090","buildStats":{"app.js":{"hash":"207778d4b68b88a7bd9905c13b182c2d"}},"assetPrefix":"","nextExport":true,"err":null,"chunks":[]}
+          module={}
+          __NEXT_LOADED_PAGES__ = []
+          __NEXT_LOADED_CHUNKS__ = []
+
+          __NEXT_REGISTER_PAGE = function (route, fn) {
+            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+
+          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+          }
+        </script><script async="" id="__NEXT_PAGE__/b/2013/10/07/elasticsearch-recreate-index-tests" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2013/10/07/elasticsearch-recreate-index-tests.js"></script><script async="" id="__NEXT_PAGE__/_error" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js"></script><div></div><script type="text/javascript" src="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" async=""></script></div></body></html>

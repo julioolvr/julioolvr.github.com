@@ -1,0 +1,148 @@
+<!DOCTYPE html><html><head><meta charSet="utf-8" class="next-head"/><meta name="viewport" content="width=device-width, initial-scale=1" class="next-head"/><link rel="icon" type="image/png" href="/static/favicon-152.png" class="next-head"/><title class="next-head">Generating Swagger documentation for an Express API</title><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2016/10/15/express-api-swagger.js" as="script"/><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js" as="script"/><link rel="preload" href="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" as="script"/><style id="__jsx-2227194078">.myself.jsx-2227194078{text-align:center;}
+.name.jsx-2227194078{text-transform:uppercase;margin-bottom:0;}
+.name.jsx-2227194078 a.jsx-2227194078{color:#e3e3e3;}
+.links.jsx-2227194078{margin-top:0;}
+.separator.jsx-2227194078{margin:0 0.2em;}
+.show-on-small.jsx-2227194078{display:none;}
+@media (max-width:440px){.show-on-small.jsx-2227194078{display:initial;}.hide-on-small.jsx-2227194078{display:none;}}</style><style id="__jsx-972330820">h1.jsx-972330820{margin-top:0;}
+.date.jsx-972330820{margin-top:2em;color:#808080;}
+h1.has-multiple-langs.jsx-972330820{margin-bottom:0;}
+.post.jsx-972330820{margin-bottom:3em;}
+.post.jsx-972330820 p{margin:2em 0;-webkit-letter-spacing:0.05em;-moz-letter-spacing:0.05em;-ms-letter-spacing:0.05em;letter-spacing:0.05em;line-height:1.7em;font-family:'Roboto',sans-serif;}
+.post.jsx-972330820 code{font-family:'Roboto Mono',monospace;color:#a7fe92;}
+.post.jsx-972330820 pre{max-width:100%;overflow-x:scroll;}
+.post.jsx-972330820 a code{color:#af3eff;}
+.post.jsx-972330820 b{color:white;}
+.post.jsx-972330820 img{width:100%;}</style><style id="__jsx-402751169">.root.jsx-402751169{;}</style><style id="__jsx-393116216">.root.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;}
+header.jsx-393116216{border-bottom:1px solid #242424;width:100%;}
+.base-layout.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;height:100vh;}
+.container.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:center;-webkit-justify-content:center;-ms-flex-pack:center;justify-content:center;-webkit-align-items:center;-webkit-box-align:center;-ms-flex-align:center;align-items:center;-webkit-flex:2;-ms-flex:2;flex:2;}
+.content.jsx-393116216{width:100%;max-height:100%;padding:0 2.5em;}
+@media (min-width:45em){.content.jsx-393116216{width:45em;}}</style><style id="__jsx-3457075783">@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:300,700|Roboto:300,700');
+*{box-sizing:border-box;}
+::selection{background-color:#16146c;}
+::-moz-selection{background-color:#16146c;}
+html,body{margin:0;padding:0;}
+body{background-color:#0e0e0e;color:#e3e3e3;font-family:'Roboto Mono',monospace;}
+a{color:#af3eff;text-decoration:none;}
+a:hover{text-decoration:underline;}
+img{max-width:100%;}</style></head><body><div><div id="__next"><div data-reactroot=""><div class="jsx-3457075783"><div class="jsx-393116216 jsx-402751169 root"><header class="jsx-393116216 jsx-402751169"><div class="jsx-2227194078 myself"><p class="jsx-2227194078 name"><a class="jsx-2227194078" href="/">Julio Olivera</a></p><p class="jsx-2227194078 links"><a class="jsx-2227194078" href="/me/">me</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/b/">blog</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/things/">things</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/talks/">talks</a><span class="jsx-2227194078 hide-on-small separator">|</span><br class="jsx-2227194078 show-on-small"/><a href="https://github.com/julioolvr" class="jsx-2227194078">github</a><span class="jsx-2227194078 separator">|</span><a href="https://twitter.com/julioolvr" class="jsx-2227194078">twitter</a></p></div></header><div class="jsx-393116216 jsx-402751169 container"><div class="jsx-393116216 jsx-402751169 content"><div class="jsx-972330820 date"><time class="jsx-972330820">2016-10-15</time></div><h1 class="jsx-972330820 ">Generating Swagger documentation for an Express API</h1><div class="jsx-972330820 post"><div><p>In the process of finishing up an<!-- --> <a href="https://expressjs.com/">Express</a> project, I wanted to leave a nice set of documentation for future users and/or maintainers of the API. I wanted the documentation to live next to the code, and the tooling to generate a nice site from it. Finally I settled for <a href="http://swagger.io/">Swagger</a> and used a combination of packages to get the job done.</p><p>There were several things I was expecting from the documentation:</p><p><ul><li>To live in comments next to the code, so it would be easier to remember to update it when needed.</li><li>To generate a decent enough site for navigating it.</li><li>To be able to test the API through that generated site.</li><li>To support making authenticated requests.</li><li>Avoid owning the code for the UI.</li></ul></p><h2>Parsing the comments</h2><p>Let&#x27;s begin by being able to extract Swagger-formatted documentation from comments in the code. The<!-- --> <a href="https://www.npmjs.com/package/swagger-jsdoc"><code>swagger-jsdoc</code></a> <!-- -->project does exactly that and<!-- --> <strong>generates a big object containing the description of the whole API</strong>. The setup is fairly straightforward if we ignore Swagger specifics:</p><pre>
+
+const swaggerJSDoc = require(&#x27;swagger-jsdoc&#x27;);
+
+const spec = swaggerJSDoc({
+  swaggerDefinition: {
+    info: {
+      title: &#x27;Project title&#x27;,
+      version: &#x27;1.0.0&#x27;
+    },
+    produces: [&#x27;application/json&#x27;],
+    consumes: [&#x27;application/json&#x27;],
+    securityDefinitions: {
+      jwt: {
+        type: &#x27;apiKey&#x27;,
+        name: &#x27;Authorization&#x27;,
+        in: &#x27;header&#x27;
+      }
+    },
+    security: [
+      { jwt: [] }
+    ]
+  },
+  apis: [
+    &#x27;lib/routes/*.js&#x27;
+  ]
+});
+</pre><p>The generator function receives an options object with two important properties:</p><p><ul><li><code>swaggerDefinition</code> will include Swagger&#x27;s global options, which can be found on its<!-- --> <a href="http://swagger.io/specification/">specification</a> <!-- -->under &quot;Schema&quot;.</li><li><code>apis</code> contains an array of paths that<!-- --> <code>swagger-jsdoc</code> will try to parse.</li></ul></p><p>I hadn&#x27;t used Swagger before starting with this documentation, so I&#x27;ll write up about some useful properties I&#x27;ve been learning along the way with references to their specs:</p><p><ul><li><code>info</code> contains metadata about the API. Its contents are a Swagger<!-- --> <a href="http://swagger.io/specification/#infoObject">Info Object</a>.</li><li><code>produces</code> and <code>consumes</code> are array of mime types that the API responds with and accepts, respectively. They can be set for each endpoint, but since the API I&#x27;m working on uses mostly JSON it was useful to set them as a global default.</li><li><code>securityDefinitions</code> specifies the way the user has to authenticate to use the API.<!-- --> <strong>The project uses JWT for authentication</strong> <!-- -->(which I talked about in<!-- --> <a href="/2016/10/01/express-jwt">a previous post</a>) so I set it up according to Swagger&#x27;s<!-- --> <a href="http://swagger.io/specification/#securityDefinitionsObject">security definition</a>. It basically means that the API expects a key on the<!-- --> <code>Authorization</code> header.</li><li><code>security</code>, similar to <code>produces</code> and<!-- --> <code>consumes</code>, can be set per endpoint - but since most of the API requires authentication, I specify it globally and override it when needed. It&#x27;s an array of<!-- --> <a href="http://swagger.io/specification/#securityRequirementObject">security requirements objects</a> <!-- -->which for this kind of authentication means just listing the required security definitions.</li></ul></p><h2>Writing the documentation</h2><p>With that setup, the next step is to write some documentation for the endpoints. <code>swagger-jsdoc</code> doesn&#x27;t expect the comments to be placed anywhere specific, as long as they are somewhere in the files included by the paths defined in the<!-- --> <code>apis</code> option, so in this case<!-- --> <strong>I want each endpoint definition to have its documentation right above it</strong>. Let&#x27;s go with a fairly comprehensive example:</p><pre>
+
+/**
+  * @swagger
+  * /users:
+  *   put:
+  *     summary: Creates a new user
+  *     description:
+  *       &quot;Required roles: `admin`&quot;
+  *     tags:
+  *       - Users
+  *     parameters:
+  *       - name: body
+  *         in: body
+  *         required: true
+  *         schema:
+  *           type: object
+  *           required:
+  *             - username
+  *             - password
+  *           properties:
+  *             username:
+  *               type: string
+  *             password:
+  *               type: password
+  *           example: {
+  *             &quot;username&quot;: &quot;someUser&quot;,
+  *             &quot;password&quot;: &quot;somePassword&quot;
+  *           }
+  *     responses:
+  *       200:
+  *         schema:
+  *           type: object
+  *           properties:
+  *             id:
+  *               type: integer
+  *             username:
+  *               type: string
+  *         examples:
+  *           application/json: {
+  *             &quot;id&quot;: 1,
+  *             &quot;username&quot;: &quot;someuser&quot;
+  *           }
+  *       409:
+  *         description: When the username is already in use
+  */
+router.put(&#x27;/&#x27;, restrictToRoles(&#x27;owner&#x27;), createUser);
+</pre><p>Most of the structure is self-explanatory. The YAML structure<!-- --> <strong>begins with the endpoint&#x27;s route</strong>, and includes<!-- --> <strong>one or several HTTP verbs</strong>. In this case since I&#x27;ll document each verb on a separate comment, it will always have one verb. Then follows a short summary of the endpoint&#x27;s purpose and an optional description. I&#x27;ve used the<!-- --> <code>description</code> field to document the required roles since Swagger only supports roles (actually scopes) properly when using OAuth authentication. Next we assign <code>tags</code> to the endpoint, which will be used to<!-- --> <strong>group related endpoints in the UI</strong>.</p><p>Then things get a little bit more complex.<!-- --> <a href="http://swagger.io/specification/#parameterObject">Parameter objects</a> <!-- -->in Swagger include all parameters<!-- --> <strong>from query string parameters to headers, passing through form fields, path parameters and request bodies</strong>. In this case, we expect to receive the data for the new user on a JSON body. Even though there are several fields that our endpoint needs,<!-- --> <strong>they&#x27;re all defined inside the single body parameter&#x27;s schema</strong>.<!-- --> <a href="http://swagger.io/specification/#schemaObject">The schema object</a> <!-- -->is probably the most complicated part of the Swagger spec that I had to deal with yet, but the basics are simple enough.<!-- --> <strong>You define<!-- --> <a href="http://swagger.io/specification/#dataTypeFormat">a type</a> <!-- -->for it</strong>, and if it&#x27;s an object or an array<!-- --> <strong>you include a <code>properties</code> or <code>items</code> <!-- -->property respectively</strong>, describing the shape of its elements. In this case we expect an object with <code>username</code> and<!-- --> <code>password</code>. We could add a <code>description</code> <!-- -->field for them but they are self explanatory.</p><p><code>responses</code> lists the possible response codes for the endpoint, with an optional <code>schema</code> property to describe the response format. With everything defined, eventually our UI will look similar to this:</p><p><img src="/static/images/blog/swagger-example.png" alt="Swagger UI" title=""/></p><p>See that red warning sign to the right? That means that<!-- --> <strong>the endpoint is secured</strong> (because we defined that to be the default) and clicking on it allows us to set the<!-- --> <code>Authorization</code> header to<!-- --> <strong>make authenticated requests</strong> by clicking on the &quot;Try it out!&quot; button. Let&#x27;s see how to create that UI now.</p><h2>Generating the documentation site</h2><p><a href="https://www.npmjs.com/package/swagger-ui-express"><code>swagger-ui-express</code></a> <!-- -->will do just that for us. With a very simple API, given the object with the API definition that <code>swagger-jsdoc</code> created, it can be set up on a route and serve that documentation:</p><pre>
+
+const swaggerUi = require(&#x27;swagger-ui-express&#x27;);
+
+/**
+ * Assuming we have a &lt;code&gt;router&lt;/code&gt; here and the &lt;code&gt;spec&lt;/code&gt;
+ * generated by swagger-jsdoc...
+ */
+
+router.use(&#x27;/docs&#x27;, swaggerUi.serve, swaggerUi.setup(spec));
+</pre><p>And as simple as that,<!-- --> <strong>our documentation now lives under the <code>/docs</code> <!-- -->endpoint</strong>. All the files for the site are owned by<!-- --> <code>swagger-ui-express</code>, so maintainers of the project don&#x27;t have to worry about keeping it updated.</p><p>I did make a little tweak to that configuration above. By default, the generated site will show the URL of an example JSON spec on its input field at the top. While it still works correctly, I set the route up so that it will add a query parameter to my actual JSON spec. For the sake of consistency, I also added an endpoint to serve the raw JSON spec:</p><pre>
+
+/**
+ * Given `spec` and the `router`
+ */
+const swaggerUi = require(&#x27;swagger-ui-express&#x27;);
+
+const docsJsonPath = &#x27;/api-docs.json&#x27;;
+const swaggerUiHandler = swaggerUi.setup(spec);
+
+router.get(docsJsonPath, (req, res) =&gt; {
+  res.setHeader(&#x27;Content-Type&#x27;, &#x27;application/json&#x27;);
+  res.send(spec);
+});
+
+router.use(&#x27;/docs&#x27;, swaggerUi.serve, (req, res, next) =&gt; {
+  if (!req.query.url) {
+    res.redirect(&lt;code&gt;/docs?url=http://${req.headers.host}${docsJsonPath}&lt;/code&gt;);
+  } else {
+    swaggerUiHandler(req, res, next);
+  }
+});
+</pre><p>That <code>url</code> query parameter makes the page show the given URL at the top instead of the default.<!-- --> <strong>And that&#x27;s it!</strong> The only thing left is to document every endpoint in the API.</p><h2>Alternatives</h2><p>There are two alternatives that I considered throughout the process. The first is <a href="http://apidocjs.com/">apiDoc</a>, which generates the documentation from JSDoc-looking comments. I decided against it because I had a couple of issues with the generated site and also preferred to use something seemingly more standard like Swagger, but it looks like an interesting project.</p><p>The other is to use<!-- --> <a href="https://github.com/apigee-127/swagger-tools"><code>swagger-tools</code></a>, a project recommended by <code>swagger-jsdoc</code>, to generate the UI based on the spec. While the project works similarly to <code>swagger-ui-express</code>, the version of the Swagger UI it comes with is outdated and doesn&#x27;t support header-based authentication. While <code>swagger-ui-express</code>&#x27; version is also a bit outdated, it&#x27;s new enough to include it.<!-- --> <code>swagger-tools</code> does support defining a custom directory with a different version of Swagger UI, but that would mean checking out the code for the UI in version control and start owning it, which is something I wanted to avoid.</p><h2>Links</h2><ul><li><a href="http://swagger.io/specification/">Swagger Specification</a></li><li><a href="https://www.npmjs.com/package/swagger-jsdoc"><code>swagger-jsdoc</code></a></li><li><a href="https://www.npmjs.com/package/swagger-ui-express"><code>swagger-ui-express</code></a></li></ul></div></div></div></div></div></div></div></div><div id="__next-error"></div></div><div><script>
+          __NEXT_DATA__ = {"props":{},"pathname":"/b/2016/10/15/express-api-swagger","query":{},"buildId":"1b6614a5-ebac-4701-b763-37328e736090","buildStats":{"app.js":{"hash":"207778d4b68b88a7bd9905c13b182c2d"}},"assetPrefix":"","nextExport":true,"err":null,"chunks":[]}
+          module={}
+          __NEXT_LOADED_PAGES__ = []
+          __NEXT_LOADED_CHUNKS__ = []
+
+          __NEXT_REGISTER_PAGE = function (route, fn) {
+            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+
+          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+          }
+        </script><script async="" id="__NEXT_PAGE__/b/2016/10/15/express-api-swagger" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2016/10/15/express-api-swagger.js"></script><script async="" id="__NEXT_PAGE__/_error" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js"></script><div></div><script type="text/javascript" src="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" async=""></script></div></body></html>

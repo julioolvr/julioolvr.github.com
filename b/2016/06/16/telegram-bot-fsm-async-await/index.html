@@ -1,0 +1,256 @@
+<!DOCTYPE html><html><head><meta charSet="utf-8" class="next-head"/><meta name="viewport" content="width=device-width, initial-scale=1" class="next-head"/><link rel="icon" type="image/png" href="/static/favicon-152.png" class="next-head"/><title class="next-head">Creating a conversational Telegram bot in Node.js with a finite state machine and async/await</title><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2016/06/16/telegram-bot-fsm-async-await.js" as="script"/><link rel="preload" href="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js" as="script"/><link rel="preload" href="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" as="script"/><style id="__jsx-2227194078">.myself.jsx-2227194078{text-align:center;}
+.name.jsx-2227194078{text-transform:uppercase;margin-bottom:0;}
+.name.jsx-2227194078 a.jsx-2227194078{color:#e3e3e3;}
+.links.jsx-2227194078{margin-top:0;}
+.separator.jsx-2227194078{margin:0 0.2em;}
+.show-on-small.jsx-2227194078{display:none;}
+@media (max-width:440px){.show-on-small.jsx-2227194078{display:initial;}.hide-on-small.jsx-2227194078{display:none;}}</style><style id="__jsx-972330820">h1.jsx-972330820{margin-top:0;}
+.date.jsx-972330820{margin-top:2em;color:#808080;}
+h1.has-multiple-langs.jsx-972330820{margin-bottom:0;}
+.post.jsx-972330820{margin-bottom:3em;}
+.post.jsx-972330820 p{margin:2em 0;-webkit-letter-spacing:0.05em;-moz-letter-spacing:0.05em;-ms-letter-spacing:0.05em;letter-spacing:0.05em;line-height:1.7em;font-family:'Roboto',sans-serif;}
+.post.jsx-972330820 code{font-family:'Roboto Mono',monospace;color:#a7fe92;}
+.post.jsx-972330820 pre{max-width:100%;overflow-x:scroll;}
+.post.jsx-972330820 a code{color:#af3eff;}
+.post.jsx-972330820 b{color:white;}
+.post.jsx-972330820 img{width:100%;}</style><style id="__jsx-402751169">.root.jsx-402751169{;}</style><style id="__jsx-393116216">.root.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;}
+header.jsx-393116216{border-bottom:1px solid #242424;width:100%;}
+.base-layout.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;height:100vh;}
+.container.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:center;-webkit-justify-content:center;-ms-flex-pack:center;justify-content:center;-webkit-align-items:center;-webkit-box-align:center;-ms-flex-align:center;align-items:center;-webkit-flex:2;-ms-flex:2;flex:2;}
+.content.jsx-393116216{width:100%;max-height:100%;padding:0 2.5em;}
+@media (min-width:45em){.content.jsx-393116216{width:45em;}}</style><style id="__jsx-3457075783">@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:300,700|Roboto:300,700');
+*{box-sizing:border-box;}
+::selection{background-color:#16146c;}
+::-moz-selection{background-color:#16146c;}
+html,body{margin:0;padding:0;}
+body{background-color:#0e0e0e;color:#e3e3e3;font-family:'Roboto Mono',monospace;}
+a{color:#af3eff;text-decoration:none;}
+a:hover{text-decoration:underline;}
+img{max-width:100%;}</style></head><body><div><div id="__next"><div data-reactroot=""><div class="jsx-3457075783"><div class="jsx-393116216 jsx-402751169 root"><header class="jsx-393116216 jsx-402751169"><div class="jsx-2227194078 myself"><p class="jsx-2227194078 name"><a class="jsx-2227194078" href="/">Julio Olivera</a></p><p class="jsx-2227194078 links"><a class="jsx-2227194078" href="/me/">me</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/b/">blog</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/things/">things</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/talks/">talks</a><span class="jsx-2227194078 hide-on-small separator">|</span><br class="jsx-2227194078 show-on-small"/><a href="https://github.com/julioolvr" class="jsx-2227194078">github</a><span class="jsx-2227194078 separator">|</span><a href="https://twitter.com/julioolvr" class="jsx-2227194078">twitter</a></p></div></header><div class="jsx-393116216 jsx-402751169 container"><div class="jsx-393116216 jsx-402751169 content"><div class="jsx-972330820 date"><time class="jsx-972330820">2016-06-16</time></div><h1 class="jsx-972330820 ">Creating a conversational Telegram bot in Node.js with a finite state machine and async/await</h1><div class="jsx-972330820 post"><div><p><a href="https://telegram.org/">Telegram</a>, for those who don&#x27;t know it, is a free multi-platform messaging app. They release new versions with interesting features fairly often, and one of the biggest ones was without a doubt their<!-- --> <a href="https://core.telegram.org/bots">bot platform</a>. I&#x27;ve been having some fun lately developing a<!-- --> <a href="https://github.com/julioolvr/telegram-frinkiac-bot">couple</a> <!-- -->of<!-- --> <a href="https://github.com/julioolvr/telegram-sticker-extractor-bot">bots</a>, and I came up with a solution for a conversation-based bot based on a finite state machine that makes use of ECMAScript&#x27;s upcoming<!-- --> <a href="https://tc39.github.io/ecmascript-asyncawait/"><code>async</code>/<code>await</code></a> <!-- -->that I believe is decent and interesting enough to share. I&#x27;ll explain it by creating a new bot from scratch.</p><h2>Intro</h2><p>Telegram&#x27;s bot API is stateless. The only data you get regarding the conversation before is the id of the message the user is replying to, if any. Initially, this means that the bot can only respond easily to single commands, but can&#x27;t have a more natural conversation to accomplish a complex task.</p><p>Luckily, the API provides us with an option to force a reply from the user when sending a message. This means that, unless the user actively cancels it, every message sent can be a reply to a previous message of the bot. This will allow us to build a bot that can keep track of each conversation it has and collect data in several steps.</p><p>We&#x27;re going to build a simple echo bot, but with some conversational characteristics. When the bot receives the <code>/start</code> <!-- -->command, it will ask for the user&#x27;s name. After that, it will start echoing mentioning the name of the user it is echoing to. Upon receiving a <code>/stop</code> command, it will ask for confirmation. If the user says <em>yes</em>, then the bot will stop echoing, if the user says <em>no</em>, it will go back to echoing, and if the user says anything else it will ask for clarification.</p><p>I find Node.js fitting as a platform for building the bots - all operations through Telegram&#x27;s API are asynchronous and most of the time I end up relying on yet more IO for the specific features of the bots. Node.js makes it easier to build bots that can respond to multiple conversations at a time without blocking.</p><p>You can see all the code<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example">here</a>. You&#x27;ll have to register a bot and set its key in a <code>.env</code> <!-- -->file if you want to try it. See the exact instructions in the README file.</p><h2>First commit</h2><p>The<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example/commit/91f4413d2ae33f643825a75596a19b03895549bc">first commit</a> <!-- -->has nothing really specific to the topic, so I&#x27;ll just go over the tools and libraries we&#x27;ll be using. Perhaps the only thing slightly related is adding <a href="https://babeljs.io">babel</a> that we&#x27;ll eventually need for transpiling the async functions, but we&#x27;ll need to do some more configuration for that. So, feel free to skip to the next section if you&#x27;re not interested on what&#x27;s on that basic setup.</p><p>Looking at the <code>package.json</code> file, we have<!-- --> <code>eslint</code> in our dev dependencies, together with<!-- --> <code>babel-eslint</code> that will be needed for ESLint to play nicely with our async functions. I&#x27;m also using <code>nodemon</code> <!-- -->to automatically reload my files during development. The runtime dependencies include <code>babel</code> and<!-- --> <code>babel-register</code> to easily transpile our code, Babel&#x27;s preset for ES2015 and<code>dotenv</code> to load the bot&#x27;s token from a <code>.env</code> <!-- -->file.</p><p>The <code>index.js</code> file simply uses <code>dotenv</code> to load the environment variables from <code>.env</code>, starts<!-- --> <code>babel-register</code> and initializes the bot (which at this point just logs to the console and exits).</p><p>The rest are configuration files for the various tools -<!-- --> <code>.eslintrc</code> for ESLint, <code>.babelrc</code> for Babel,<!-- --> <code>.nvmrc</code> to specify Node&#x27;s version with NVM and<!-- --> <code>.editorconfig</code> to keep a consistent style while writing the code.</p><h2>Echoing</h2><p>The<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example/commit/1686a61f026fbd28ee9a1a6244ad80ef8684acb9">next step</a> <!-- -->is having the bot actually doing something. Before we dive into the code, we&#x27;ll have to actually create the bot in the platform. To do that, talk to<!-- --> <a href="https://web.telegram.org/#/im?tgaddr=tg%3A%2F%2Fresolve%3Fdomain%3Dbotfather">@BotFather</a> <!-- -->and follow the steps. It boils down to giving your bot a name. After that, you&#x27;ll get a token that the bot will use to identify itself when querying Telegram&#x27;s API. Keep that somewhere safe and let&#x27;s start working on some basic functionality.</p><p>First things first, for a while I&#x27;ve been coding the interaction with Telegram&#x27;s API manually, using<!-- --> <a href="https://www.npmjs.com/package/request"><code>request</code> </a>or<!-- --> <a href="https://www.npmjs.com/package/got"><code>got</code></a> <!-- -->to make the requests. There are a number of already implemented solutions available in NPM so this time I went with<!-- --> <a href="https://www.npmjs.com/package/node-telegram-bot-api"><code>node-telegram-bot-api</code></a>. It has most of the API functionality implemented and it handles replies very well. So let&#x27;s install it:</p><pre>npm i node-telegram-bot-api --save</pre><p>Now let&#x27;s update our <code>Bot</code> class - it will use an instance of the class exported by <code>node-telegram-bot-api</code> <!-- -->as a client to interact with Telegram&#x27;s API:</p><pre>
+
+import TelegramBotClient from &#x27;node-telegram-bot-api&#x27;
+
+export default class Bot {
+  constructor(token) {
+    this.client = new TelegramBotClient(token, { polling: true })
+  }
+
+  start() {
+    this.client.on(&#x27;message&#x27;, message =&gt; {
+      console.log(&#x27;Got a message&#x27;, message)
+    })
+  }
+}
+</pre><p>Note that we need to pass two parameters to the client - the<!-- --> <code>token</code> is pretty simple, it&#x27;s the token we got from @BotFather. The options object is setting up the client to poll for updates. Your bot has two ways to get messages from Telegram. The first one is using a webhook. You can configure the platform to push the messages to some endpoint that you own and read the messages from there. This is a clean solution but at the same time it implies more configuration. For instance, the endpoint<!-- --> <em>has</em> to be accessible through HTTPS. Self-signed certificates work, but it&#x27;s still more troublesome to configure that than using polling.</p><p>The polling method (<a href="https://en.wikipedia.org/wiki/Push_technology#Long_polling">long polling</a>, actually) makes a request to Telegram to fetch updates. If there are none, Telegram&#x27;s server will just hold until there&#x27;s one or a timeout is reached. That way, immediately after a new update comes through, Telegram will resolve the pending request and your bot will get it almost immediately.</p><p>So how do we get the bot&#x27;s token to the client? That&#x27;s where<!-- --> <code>dotenv</code> comes in. We don&#x27;t want the token to be hardcoded and available for everyone with access to the code. So we&#x27;ll put the token in a <code>.env</code> file, like</p><pre>BOT_TOKEN=123456789:abcdefghijklmnoprqstuvwxyz</pre><p>Since we&#x27;re already calling <code>dotenv.load()</code> in our<!-- --> <code>index.js</code> file, we have everything that&#x27;s on<!-- --> <code>.env</code> available in<!-- --> <code>process.env</code>. So we&#x27;ll update <code>index.js</code> to pass that token to our <code>Bot</code> instance:</p><pre>-var bot = new Bot() +var bot = new Bot(process.env.BOT_TOKEN)</pre><p>So far so good, our bot logs each message it receives. Let&#x27;s take one more step and make it echo whatever it receives. It&#x27;s rather simple using <code>node-telegram-bot-api</code>, we just need to tell it what message we want to send (the exact text we got) and to which chat (the one we got it from):</p><pre>
+
+-    console.log(&#x27;Got a message&#x27;, message)
++    this.client.on(&#x27;message&#x27;, message =&gt; {
++      this.client.sendMessage(message.chat.id, message.text)
++    })
+</pre><p>And that&#x27;s it! At this point we have a bot that echoes whatever we send to it. Let&#x27;s move onto having a very simple conversation leveraging <code>async</code>/<code>await</code>.</p><h2>Async/Await</h2><p>Now we want to make our bot stop echoing. When the bot receives a message saying <em>stop</em>, it will just say it stopped echoing. For that, we want to force the user to reply to each echo of the bot. You can see all the code in the<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example/commit/0b93835276b14a57c44c113bb12d70660e883085">third commit</a>.</p><p>This could&#x27;ve been done without waiting for replies - just make the bot send the message &quot;Stopping&quot; if the user sent the message &quot;stop&quot;. It wouldn&#x27;t actually <em>stop</em> doing anything, but the end result would be the same. Let&#x27;s do it waiting for a user reply for now and then we&#x27;ll see an example which really needs the replies in the next step.</p><p>We&#x27;ll use the<!-- --> <a href="https://core.telegram.org/bots/api#forcereply"><code>ForceReply</code></a> <!-- -->option in the send messages API to make Telegram automatically show the user the UI to reply to the bot&#x27;s last message. Our code for sending the echo will now look like this:</p><pre>
+
+this.client.sendMessage(message.chat.id,
+                        `echo: ${text}`,
+                        { reply_markup: JSON.stringify({ force_reply: true }) })
+</pre><p>Note that we have to pass the options as a string, so we&#x27;ll use<!-- --> <code>JSON.stringify</code> for that.</p><p><code>sendMessage</code> returns a promise that gets resolved with the sent message once it went through and which has some interesting information about it, namely its id which can be used to wait for a reply. <code>node-telegram-bot-api</code> has a method called<code>onReplyToMessage</code> which will execute a callback when a message comes that is a reply for a specific message id. So let&#x27;s put those two together to handle our user&#x27;s first reply:</p><pre>
+
+this.client.sendMessage(message.chat.id,
+                        `echo: ${text}`,
+                        { reply_markup: JSON.stringify({ force_reply: true }) })
+    .then(reply =&gt; console.log(reply))
+</pre><p>Nice. So what do we actually want to do with the reply? Well, if<!-- --> <code>reply.text === &#x27;stop&#x27;</code>, we want to stop echoing, otherwise we want to echo again. And wait for another reply. So basically the same thing we just did. Let&#x27;s extract it to a method then:</p><pre>
+
+respondTo(message) {
+  if (message.text === &#x27;stop&#x27;) {
+    this.client.sendMessage(message.chat.id, &#x27;Stopping&#x27;)
+  } else {
+    this.respondToMessage(message)
+  }
+}
+
+respondToMessage(message) {
+  this.client.sendMessage(message.chat.id,
+                          `echo: ${text}`,
+                          { reply_markup: JSON.stringify({ force_reply: true }) })
+    .then(sentMessage =&gt; {
+      this.client.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id, reply =&gt; {
+        if (reply.text === &#x27;stop&#x27;) {
+          this.client.sendMessage(message.chat.id, &#x27;Stopping&#x27;)
+        } else {
+          this.respondToMessage(reply)
+        }
+      })
+    })
+}
+</pre><p>That should do the trick, right? Well, yes. But the code is (maybe arguably) harder to read than if it were synchronous. We have some nesting when the algorithm is basically a <code>while</code> loop. So what if the code could look more like this:</p><pre>
+
+respondTo(message) {
+  let text = message.text
+
+  while (text !== &#x27;stop&#x27;) {
+    let sentMessage = this.client.sendMessage(message.chat.id,
+                                              `echo: ${text}`,
+                                              { reply_markup: JSON.stringify({ force_reply: true }) })
+    let reply = this.client.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id)
+    text = reply.text
+  }
+
+  this.client.sendMessage(message.chat.id, &#x27;Stopping&#x27;)
+}
+</pre><p>Hint: it can, and it will. That&#x27;s where <code>async</code> and<!-- --> <code>await</code> come in. The<!-- --> <a href="https://tc39.github.io/ecmascript-asyncawait/">Async Functions proposal</a> <!-- -->aims to make it simpler to write asynchronous code like the above. It leverages the power of<!-- --> <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/function*">generators</a> <!-- -->and<!-- --> <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise">promises</a> <!-- -->- and can actually be considered<!-- --> <a href="https://tc39.github.io/ecmascript-asyncawait/#desugaring">syntax sugar over both</a> <!-- -->- to make writing code that interacts with promises very straightforward.</p><p>The first keyword, <code>async</code>, is used in function declarations to make it clear that they are asynchronous. In practice, this means that they&#x27;ll return promises. In our case, we just need to declare <code>respondTo</code> as<!-- --> <code>async respondTo</code>.</p><p><code>await</code> can only be used in <code>async</code> functions. It will take the promise following it and stop execution until it resolves. Putting the two of them together means that, roughly, the following two snippets are equivalent:</p><pre>
+
+function syncFunction() {
+  return someAsyncOperation()
+    .then(result =&gt; result + 1)
+    .catch(err =&gt; console.error(err))
+}
+
+async function asyncFunction() {
+  try {
+    let result = await someAsyncOperation()
+    return result + 1
+  } catch (err) {
+    console.error(err)
+  }
+}
+</pre><p>Going back to our code, the first step we need to take is to configure Babel to support async functions. Since they&#x27;re not part of the spec yet, they aren&#x27;t supported by default. So first, we want to install <code>babel-plugin-transform-async-to-generator</code> <!-- -->along with <code>babel-polyfill</code>:</p><pre>npm i babel-plugin-transform-async-to-generator babel-polyfill --save</pre><p>Once that&#x27;s done, we need to add<!-- --> <code>require(&#x27;babel-polyfill&#x27;)</code> before requiring<!-- --> <code>babel-register</code> in our <code>index.js</code> file, and configure Babel to use the async transformation plugin in our<!-- --> <code>.babelrc</code> file:</p><pre>
+
+{
+  &quot;presets&quot;: [
+    &quot;es2015&quot;
+  ],
+  &quot;plugins&quot;: [
+    &quot;transform-async-to-generator&quot;
+  ]
+}
+</pre><p>Now we can go and use async functions in the bot&#x27;s code. We can use<!-- --> <code>await</code> directly with<!-- --> <code>this.client.sendMessage</code> since, as we saw before, it returns a promise. <code>this.client.onReplyToMessage</code> is a little bit trickier - it doesn&#x27;t return a promise, instead it executes a callback that it receives as the last parameter when the reply arrives. We&#x27;ll have to turn it into a promise, but luckily that&#x27;s not hard at all:</p><pre>
+
+let reply = await new Promise(resolve =&gt;
+  this.client.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id, resolve)
+)
+</pre><p>I won&#x27;t go into the details of promise creation since there are good posts out there, but the gist of it is that we&#x27;re creating a new promise that gets resolved when<!-- --> <code>this.client.onReplyToMessage</code> executes its callback, and the value it resolves to is the parameter that&#x27;s passed to that callback. So if we put everything together, we end up with something like this:</p><pre>
+
+async respondTo(message) {
+  let text = text = message.text
+
+  while (text !== &#x27;stop&#x27;) {
+    let sentMessage = await this.client.sendMessage(message.chat.id,
+                                                    `echo: ${text}`,
+                                                    { reply_markup: JSON.stringify({ force_reply: true }) })
+    let reply = await new Promise(resolve =&gt; this.client.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id, resolve))
+    text = reply.text
+  }
+
+  this.client.sendMessage(message.chat.id, &#x27;Stopping&#x27;)
+}
+</pre><p>Note that we marked <code>respondTo</code> as <code>async</code>, and then used two <code>await</code>s in the body of the<!-- --> <code>while</code> loop. And that&#x27;s it! The code certainly reads a lot easier, almost as if it were synchronous. It could be better if we didn&#x27;t have to &quot;promisify&quot; the call to<!-- --> <code>this.client.onReplyToMessage</code> but it&#x27;s definitely easier to follow than the version without <code>async</code>/<code>await</code>.</p><p>One more change we&#x27;ll have to do for this to work - while the user replies will get to the callback in<!-- --> <code>this.client.onReplyToMessage</code>, they are also regular messages so they will show up in our callback to<!-- --> <code>this.client.on(&#x27;message&#x27;)</code> as well. So we have to update that callback to only take into account messages which are not replies. Replies will already be caught by the loop.</p><pre>
+
+start() {
+  this.client.on(&#x27;message&#x27;, message =&gt; {
+    if (!message.reply_to_message) {
+      this.respondTo(message)
+    }
+  })
+}
+</pre><p>Having done this, it&#x27;s time to model more complex behavior in the form of a state machine.</p><h2>Finite State Machine</h2><p>Let&#x27;s remember the final functionality we expect from the bot. It should ask us for our name upon <code>/start</code>. Then, it should start echoing whatever we send to it, until we say<!-- --> <code>/stop</code>. When we send that command, it should ask us for confirmation. If we say &quot;yes&quot;, the execution should finish. If we say &quot;no&quot;, it should go back to echoing. If we say anything else, it should ask for clarification.</p><p>There might be several ways to model this behavior. What I know for sure is that I want to avoid having a bunch of flags and complicated conditionals that are checked on each reply, because the pain it would be to write it wouldn&#x27;t be comparable to the pain of maintaining it. So one possible way to create a mental model of it is to think of the bot being in one of several states, and being able to transition between them:</p><p><img src="/static/images/blog/telegram-fsm.png" alt="Bot states" title=""/></p><p>It&#x27;s been a while since I studied finite state machines so I&#x27;m not going to pretend I remember them well enough to explain it here. I&#x27;ll refer to the always trustworthy<!-- --> <a href="https://en.wikipedia.org/wiki/Finite-state_machine">Wikipedia article</a> <!-- -->for them, but if you want a quick explanation that&#x27;s enough for the purposes of this post, here it goes.</p><p>A finite state machine (FSM from now on) is a model that is composed of states, and the transitions between them. The machine is always in one of those states, until an event comes that makes it change to another. Some of those states can be considered final or terminal.</p><p>Not surprisingly, that model fits the diagram of the bot above pretty well. The bot will be in one of several states, which mostly represent what is it waiting for - the <code>/start</code> command, a name, text to echo and so on. It will be our job to determine, based on the current state of the machine and the message we get from Telegram&#x27;s API, what&#x27;s the corresponding event.</p><p>Again, you can check the<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example/commit/ffb568314ad5f8f531828246495f0cc1852e0e2c">corresponding commit</a> <!-- -->to see the changes.</p><h3>Defining the state machine</h3><p>Let&#x27;s start by installing a library that will handle the FSM internals. I&#x27;ll go with<!-- --> <a href="https://www.npmjs.com/package/javascript-state-machine"><code>javascript-state-machine</code></a> <!-- -->but it&#x27;s likely there are plenty of others.</p><pre>npm i javascript-state-machine --save</pre><p>Now let&#x27;s write the FSM from above using the library. Since an instance of the FSM keeps track of its current state, we want to have one instance per conversation. So we&#x27;ll start by defining a function that creates the machine:</p><pre>
+
+import StateMachine from &#x27;javascript-state-machine&#x27;
+
+function createFsm() {
+  return StateMachine.create({
+    initial: &#x27;waitingstart&#x27;,
+    final: &#x27;final&#x27;,
+    events: [
+      { name: &#x27;gotstart&#x27;, from: &#x27;waitingstart&#x27;, to: &#x27;waitingname&#x27; },
+      { name: &#x27;gotname&#x27;, from: &#x27;waitingname&#x27;, to: &#x27;echoing&#x27; },
+      { name: &#x27;gottext&#x27;, from: &#x27;echoing&#x27;, to: &#x27;echoing&#x27; },
+      { name: &#x27;gotstop&#x27;, from: &#x27;echoing&#x27;, to: &#x27;confirm&#x27; },
+      { name: &#x27;confirmed&#x27;, from: &#x27;confirm&#x27;, to: &#x27;final&#x27; },
+      { name: &#x27;cancelled&#x27;, from: &#x27;confirm&#x27;, to: &#x27;echoing&#x27; },
+      { name: &#x27;invalid&#x27;, from: &#x27;confirm&#x27;, to: &#x27;confirm&#x27; }
+    ]
+  })
+}
+</pre><p>If you take a look at each event, they represent the transitions defined in the diagram. The states aren&#x27;t explicitly listed, but you&#x27;ll see all of them in the transitions. We can use that function in <code>respondTo</code> to get a new FSM for the conversation. Also, now we have a fancier way to check if the conversation has ended - we can use the method <code>isFinished</code> from the state machine to check for a final state. Let&#x27;s update the code then:</p><pre>
+
+async respondTo(message) {
+  let fsm = createFsm()
+  let lastReply = message
+
+  while (!fsm.isFinished()) {
+    let text = lastReply.text
+    let event = eventFromStateAndMessageText(fsm.current, text)
+
+    if (!event || fsm.cannot(event)) {
+      this.client.sendMessage(message.chat.id, &#x27;I wasn&#x27;t expecting that, try /start&#x27;)
+      break
+    }
+
+    fsm[event](lastReply)
+
+    let sentMessage = await lastMessage
+    lastReply = await new Promise(resolve =&gt; this.client.onReplyToMessage(sentMessage.chat.id, sentMessage.message_id, resolve))
+  }
+}
+</pre><p>Besides using <code>fsm.isFinished()</code> as our<!-- --> <code>while</code> condition, we&#x27;re using<!-- --> <code>fsm.cannot(event)</code>. This means that once we figured out what event corresponds to the received message, we can check if the machine can actually apply that transition. Otherwise, it means the user sent something we weren&#x27;t expecting. This doesn&#x27;t necessarily applies to this case, since we&#x27;re already considering the current state when deciding which event we should trigger, but it&#x27;s useful in more complex situations.</p><p>Notice that we have a <code>lastMessage</code> variable that&#x27;s not defined yet. Let&#x27;s keep it there for now and we&#x27;ll go back to it, but basically it holds the last message the bot sent, so we can then wait for a reply to it.</p><p>Also notice that we&#x27;re calling <code>fsm[event](lastReply)</code> to make the FSM transition states. The FSM has a method for each event we defined for it that will trigger such event. We can pass arbitrary parameters to that method, which we&#x27;ll use later in the callbacks.</p><p>Let&#x27;s go to that <code>eventFromStateAndMessageText</code> function now. We&#x27;ll pass the current machine state and the text from the last user reply, and expect to receive a string with the event. We consider the case where the event is <code>undefined</code>, because it can happen that given the current state, there&#x27;s no valid event for the message we got. The kind of logic that&#x27;ll go in this function goes something like &quot;if I&#x27;m waiting for the /start command and I get the /start text, the event is &#x27;gotstart&#x27;&quot;, &quot;if I&#x27;m waiting for the name, whatever text I received generates the &#x27;gotname&#x27; event&quot; and so on:</p><pre>
+
+function eventFromStateAndMessageText(state, text) {
+  switch (state) {
+  case &#x27;waitingstart&#x27;:
+    return text === &#x27;/start&#x27; &amp;&amp; &#x27;gotstart&#x27;
+    break
+  case &#x27;waitingname&#x27;:
+    return &#x27;gotname&#x27;
+    break
+  case &#x27;echoing&#x27;:
+    return text === &#x27;/stop&#x27; ? &#x27;gotstop&#x27; : &#x27;gottext&#x27;
+    break
+  case &#x27;confirm&#x27;:
+    if (text === &#x27;yes&#x27;) {
+      return &#x27;confirmed&#x27;
+    } else if (text === &#x27;no&#x27;) {
+      return &#x27;cancelled&#x27;
+    } else {
+      return &#x27;invalid&#x27;
+    }
+  }
+}
+</pre><h3>Defining the machine&#x27;s behavior</h3><p>Now to the last part: where are we actually replying to the user? Well, the FSM provides us with a couple of callbacks, specifically when the machine enters and leaves a state, and before and after executing an event. Each have their use cases, but the way we thought our bot here I believe using the event callbacks makes sense - after I get /start, I want to ask for the name. After I got a name, I want to start echoing, and so on.</p><p>We want to attach these callbacks to the machine inside<!-- --> <code>respondTo</code> though, because we need some context for them - we want the chat id we&#x27;re responding to, and we want access to the Telegram client to be able to send messages back. So, before the<!-- --> <code>while</code> loop we&#x27;ll define all the callbacks:</p><pre>
+
+let name
+let lastMessage
+
+fsm.ongotstart = () =&gt; {
+  lastMessage = this.client.sendMessage(message.chat.id,
+                                        &#x27;Let&#x27;s begin! What&#x27;s your name?&#x27;,
+                                        { reply_markup: JSON.stringify({ force_reply: true }) })
+}
+
+fsm.ongotname = (event, from, to, message) =&gt; {
+  name = message.text
+  lastMessage = this.client.sendMessage(message.chat.id,
+                                        `Got it ${name}, I&#x27;ll begin echoing your replies until you respond with /stop`,
+                                        { reply_markup: JSON.stringify({ force_reply: true }) })
+}
+
+fsm.ongottext = (event, from, to, message) =&gt; {
+  lastMessage = this.client.sendMessage(message.chat.id,
+                                        `Echoing for ${name}: ${message.text}`,
+                                        { reply_markup: JSON.stringify({ force_reply: true }) })
+}
+
+/.../
+</pre><p>I omitted some callbacks for brevity, but they&#x27;re all pretty similar. That, I believe, is what makes modeling the bot as a FSM so useful. We can separate the transitions (I got this message and I was waiting for this other thing) from the actual behavior once a transition is applied. Our <code>oncancelled</code> callback knows that we were echoing and got a /stop command, that was then cancelled. All it has to do is send the appropriate message back. Not even transition to another state - the FSM will handle it.</p><p>We defined two new variables that we&#x27;ll need across different messages outside of the callbacks - <code>name</code>, where we&#x27;ll store the name the user gives us for the current conversation, and the previously seen <code>lastMessage</code> so we can then wait for it to be sent and expect a reply if needed.</p><p>And that&#x27;s all there&#x27;s to it! Take a look at the finished code on<!-- --> <a href="https://github.com/julioolvr/telegram-bot-example">Github</a>. Certainly more could be done to the bot. For instance, DRY up those <code>this.client.sendMessage</code> calls, and maybe create a custom class that wraps the FSM and can keep the context needed (in particular, <code>javascript-state-machine</code> has a<!-- --> <code>target</code> option to extend an existing instance of another class and turn it into a FSM). But I think in its current state it already shows how useful it is to model the bot as a FSM, and how clean and readable the code is using <code>async</code>/<code>await</code>.</p><h2>Further reading</h2><ul><li><a href="https://ponyfoo.com/articles/understanding-javascript-async-await">Understanding JavaScript’s async await</a>, by <a href="https://twitter.com/nzgb">@nzgb</a></li><li><a href="https://github.com/yagop/node-telegram-bot-api"><code>node-telegram-bot-api</code></a></li><li><a href="https://github.com/jakesgordon/javascript-state-machine"><code>javascript-state-machine</code></a></li></ul></div></div></div></div></div></div></div></div><div id="__next-error"></div></div><div><script>
+          __NEXT_DATA__ = {"props":{},"pathname":"/b/2016/06/16/telegram-bot-fsm-async-await","query":{},"buildId":"1b6614a5-ebac-4701-b763-37328e736090","buildStats":{"app.js":{"hash":"207778d4b68b88a7bd9905c13b182c2d"}},"assetPrefix":"","nextExport":true,"err":null,"chunks":[]}
+          module={}
+          __NEXT_LOADED_PAGES__ = []
+          __NEXT_LOADED_CHUNKS__ = []
+
+          __NEXT_REGISTER_PAGE = function (route, fn) {
+            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+
+          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+          }
+        </script><script async="" id="__NEXT_PAGE__/b/2016/06/16/telegram-bot-fsm-async-await" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/b/2016/06/16/telegram-bot-fsm-async-await.js"></script><script async="" id="__NEXT_PAGE__/_error" type="text/javascript" src="/_next/1b6614a5-ebac-4701-b763-37328e736090/page/_error.js"></script><div></div><script type="text/javascript" src="/_next/207778d4b68b88a7bd9905c13b182c2d/app.js" async=""></script></div></body></html>
