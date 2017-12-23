@@ -1,19 +1,19 @@
-<!DOCTYPE html><html><head><meta charSet="utf-8" class="next-head"/><meta name="viewport" content="width=device-width, initial-scale=1" class="next-head"/><link rel="icon" type="image/png" href="/static/favicon-152.png" class="next-head"/><title class="next-head">Unexplained syntax error on PhantomJS with strict mode</title><link rel="preload" href="/_next/254e5dd0-dc00-45e8-83a1-fad3c09be2e0/page/b/2015/07/25/syntax-error-strict-mode-phantomjs.js" as="script"/><link rel="preload" href="/_next/254e5dd0-dc00-45e8-83a1-fad3c09be2e0/page/_error.js" as="script"/><link rel="preload" href="/_next/37eac9562408c5fadae3b227e1ebba0e/app.js" as="script"/><style id="__jsx-2227194078">.myself.jsx-2227194078{text-align:center;}
+<!DOCTYPE html><html><head><meta charSet="utf-8" class="next-head"/><meta name="viewport" content="width=device-width, initial-scale=1" class="next-head"/><link rel="icon" type="image/png" href="/static/favicon-152.png" class="next-head"/><title class="next-head">Unexplained syntax error on PhantomJS with strict mode</title><link rel="preload" href="/_next/b7ad8ed3-6152-4cd2-82ce-a6c153bcc1a8/page/b/2015/07/25/syntax-error-strict-mode-phantomjs.js" as="script"/><link rel="preload" href="/_next/b7ad8ed3-6152-4cd2-82ce-a6c153bcc1a8/page/_error.js" as="script"/><link rel="preload" href="/_next/561a7924e7088b945c540a4f5d09dadf/app.js" as="script"/><style id="__jsx-2227194078">.myself.jsx-2227194078{text-align:center;}
 .name.jsx-2227194078{text-transform:uppercase;margin-bottom:0;}
 .name.jsx-2227194078 a.jsx-2227194078{color:#e3e3e3;}
 .links.jsx-2227194078{margin-top:0;}
 .separator.jsx-2227194078{margin:0 0.2em;}
 .show-on-small.jsx-2227194078{display:none;}
-@media (max-width:440px){.show-on-small.jsx-2227194078{display:initial;}.hide-on-small.jsx-2227194078{display:none;}}</style><style id="__jsx-972330820">h1.jsx-972330820{margin-top:0;}
-.date.jsx-972330820{margin-top:2em;color:#808080;}
-h1.has-multiple-langs.jsx-972330820{margin-bottom:0;}
-.post.jsx-972330820{margin-bottom:3em;}
-.post.jsx-972330820 p{margin:2em 0;-webkit-letter-spacing:0.05em;-moz-letter-spacing:0.05em;-ms-letter-spacing:0.05em;letter-spacing:0.05em;line-height:1.7em;font-family:'Roboto',sans-serif;}
-.post.jsx-972330820 code{font-family:'Roboto Mono',monospace;color:#a7fe92;}
-.post.jsx-972330820 pre{max-width:100%;overflow-x:scroll;}
-.post.jsx-972330820 a code{color:#af3eff;}
-.post.jsx-972330820 b{color:white;}
-.post.jsx-972330820 img{width:100%;}</style><style id="__jsx-402751169">.root.jsx-402751169{;}</style><style id="__jsx-393116216">.root.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;}
+@media (max-width:440px){.show-on-small.jsx-2227194078{display:initial;}.hide-on-small.jsx-2227194078{display:none;}}</style><style id="__jsx-3819723971">h1.jsx-3819723971{margin-top:0;}
+.date.jsx-3819723971{margin-top:2em;color:#808080;}
+h1.has-multiple-langs.jsx-3819723971{margin-bottom:0;}
+.post.jsx-3819723971{margin-bottom:3em;}
+.post.jsx-3819723971 p{margin:2em 0;-webkit-letter-spacing:0.05em;-moz-letter-spacing:0.05em;-ms-letter-spacing:0.05em;letter-spacing:0.05em;line-height:1.7em;font-family:'Roboto',sans-serif;}
+.post.jsx-3819723971 p > code{font-family:'Roboto Mono',monospace;color:#a7fe92;}
+.post.jsx-3819723971 pre{max-width:100%;overflow-x:scroll;}
+.post.jsx-3819723971 a code{color:#af3eff;}
+.post.jsx-3819723971 b{color:white;}
+.post.jsx-3819723971 img{width:100%;}</style><style id="__jsx-402751169">.root.jsx-402751169{;}</style><style id="__jsx-393116216">.root.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;}
 header.jsx-393116216{border-bottom:1px solid #242424;width:100%;}
 .base-layout.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;height:100vh;}
 .container.jsx-393116216{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:center;-webkit-justify-content:center;-ms-flex-pack:center;justify-content:center;-webkit-align-items:center;-webkit-box-align:center;-ms-flex-align:center;align-items:center;-webkit-flex:2;-ms-flex:2;flex:2;}
@@ -26,16 +26,14 @@ html,body{margin:0;padding:0;}
 body{background-color:#0e0e0e;color:#e3e3e3;font-family:'Roboto Mono',monospace;}
 a{color:#af3eff;text-decoration:none;}
 a:hover{text-decoration:underline;}
-img{max-width:100%;}</style></head><body><div><div id="__next"><div data-reactroot=""><div class="jsx-3457075783"><div class="jsx-393116216 jsx-402751169 root"><header class="jsx-393116216 jsx-402751169"><div class="jsx-2227194078 myself"><p class="jsx-2227194078 name"><a class="jsx-2227194078" href="/">Julio Olivera</a></p><p class="jsx-2227194078 links"><a class="jsx-2227194078" href="/me/">me</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/b/">blog</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/things/">things</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/talks/">talks</a><span class="jsx-2227194078 hide-on-small separator">|</span><br class="jsx-2227194078 show-on-small"/><a href="https://github.com/julioolvr" class="jsx-2227194078">github</a><span class="jsx-2227194078 separator">|</span><a href="https://twitter.com/julioolvr" class="jsx-2227194078">twitter</a></p></div></header><div class="jsx-393116216 jsx-402751169 container"><div class="jsx-393116216 jsx-402751169 content"><div class="jsx-972330820 date"><time class="jsx-972330820">2015-07-25</time></div><h1 class="jsx-972330820 ">Unexplained syntax error on PhantomJS with strict mode</h1><div class="jsx-972330820 post"><div><p>Short story: PhantomJS considers a syntax error when a named function expression is called the same as some of its parameters, and won&#x27;t be very explicit about it.</p><p>Consider the following code:</p><pre>
-
-&#x27;use strict&#x27;;
-var something = function bug(bug) {};
-</pre><p>The fact that the function is called <code>bug</code>, and the parameter is also called <code>bug</code>, will trigger a syntax error in PhantomJS. Note that a function declaration has no problems with it:</p><pre>
-
-&#x27;use strict&#x27;;
-function bug(bug) {}
-</pre><p>No syntax error there! But when there <em>is</em> a syntax error, PhantomJS will only say so and won&#x27;t specify what the error is. This can be kind of annoying when your automasted tests use Phantom and fail miserably while the app works fine on your browser. One good way to find the cause for these kind of bugs is that PhantomJS behaves very similar to Safari, and this specific bug is also present there. So if you happen to develop on Safari then you&#x27;ll see it before it gets to Phantom, but if you don&#x27;t it&#x27;s a nice trick to remember the next time you have to debug a Phantom-specific bug.</p></div></div></div></div></div></div></div></div><div id="__next-error"></div></div><div><script>
-          __NEXT_DATA__ = {"props":{},"pathname":"/b/2015/07/25/syntax-error-strict-mode-phantomjs","query":{},"buildId":"254e5dd0-dc00-45e8-83a1-fad3c09be2e0","buildStats":{"app.js":{"hash":"37eac9562408c5fadae3b227e1ebba0e"}},"assetPrefix":"","nextExport":true,"err":null,"chunks":[]}
+img{max-width:100%;}</style></head><body><div><div id="__next"><div data-reactroot=""><div class="jsx-3457075783"><div class="jsx-393116216 jsx-402751169 root"><header class="jsx-393116216 jsx-402751169"><div class="jsx-2227194078 myself"><p class="jsx-2227194078 name"><a class="jsx-2227194078" href="/">Julio Olivera</a></p><p class="jsx-2227194078 links"><a class="jsx-2227194078" href="/me/">me</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/b/">blog</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/things/">things</a><span class="jsx-2227194078 separator">|</span><a class="jsx-2227194078" href="/talks/">talks</a><span class="jsx-2227194078 hide-on-small separator">|</span><br class="jsx-2227194078 show-on-small"/><a href="https://github.com/julioolvr" class="jsx-2227194078">github</a><span class="jsx-2227194078 separator">|</span><a href="https://twitter.com/julioolvr" class="jsx-2227194078">twitter</a></p></div></header><div class="jsx-393116216 jsx-402751169 container"><div class="jsx-393116216 jsx-402751169 content"><div class="jsx-3819723971 date"><time class="jsx-3819723971">2015-07-25</time></div><h1 class="jsx-3819723971 ">Unexplained syntax error on PhantomJS with strict mode</h1><div class="jsx-3819723971 post"><div><p>Short story: PhantomJS considers a syntax error when a named function expression is called the same as some of its parameters, and won&#x27;t be very explicit about it.</p><p>Consider the following code:</p><pre style="display:block;overflow-x:auto;padding:0.5em;background:#1E1E1E;color:#DCDCDC"><code><span style="color:#9B9B9B">
+&#x27;use strict&#x27;</span>;
+<span style="color:#569CD6">var</span> something = <span style="color:#DCDCDC"><span style="color:#569CD6">function</span> <span style="color:#DCDCDC">bug</span>(<span style="color:#DCDCDC">bug</span>) </span>{};
+  </code></pre><p>The fact that the function is called <code>bug</code>, and the parameter is also called <code>bug</code>, will trigger a syntax error in PhantomJS. Note that a function declaration has no problems with it:</p><pre style="display:block;overflow-x:auto;padding:0.5em;background:#1E1E1E;color:#DCDCDC"><code><span style="color:#9B9B9B">
+&#x27;use strict&#x27;</span>;
+<span style="color:#DCDCDC"><span style="color:#569CD6">function</span> <span style="color:#DCDCDC">bug</span>(<span style="color:#DCDCDC">bug</span>) </span>{}
+  </code></pre><p>No syntax error there! But when there <em>is</em> a syntax error, PhantomJS will only say so and won&#x27;t specify what the error is. This can be kind of annoying when your automasted tests use Phantom and fail miserably while the app works fine on your browser. One good way to find the cause for these kind of bugs is that PhantomJS behaves very similar to Safari, and this specific bug is also present there. So if you happen to develop on Safari then you&#x27;ll see it before it gets to Phantom, but if you don&#x27;t it&#x27;s a nice trick to remember the next time you have to debug a Phantom-specific bug.</p></div></div></div></div></div></div></div></div><div id="__next-error"></div></div><div><script>
+          __NEXT_DATA__ = {"props":{},"pathname":"/b/2015/07/25/syntax-error-strict-mode-phantomjs","query":{},"buildId":"b7ad8ed3-6152-4cd2-82ce-a6c153bcc1a8","buildStats":{"app.js":{"hash":"561a7924e7088b945c540a4f5d09dadf"}},"assetPrefix":"","nextExport":true,"err":null,"chunks":[]}
           module={}
           __NEXT_LOADED_PAGES__ = []
           __NEXT_LOADED_CHUNKS__ = []
@@ -47,4 +45,4 @@ function bug(bug) {}
           __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
             __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
           }
-        </script><script async="" id="__NEXT_PAGE__/b/2015/07/25/syntax-error-strict-mode-phantomjs" type="text/javascript" src="/_next/254e5dd0-dc00-45e8-83a1-fad3c09be2e0/page/b/2015/07/25/syntax-error-strict-mode-phantomjs.js"></script><script async="" id="__NEXT_PAGE__/_error" type="text/javascript" src="/_next/254e5dd0-dc00-45e8-83a1-fad3c09be2e0/page/_error.js"></script><div></div><script type="text/javascript" src="/_next/37eac9562408c5fadae3b227e1ebba0e/app.js" async=""></script></div></body></html>
+        </script><script async="" id="__NEXT_PAGE__/b/2015/07/25/syntax-error-strict-mode-phantomjs" type="text/javascript" src="/_next/b7ad8ed3-6152-4cd2-82ce-a6c153bcc1a8/page/b/2015/07/25/syntax-error-strict-mode-phantomjs.js"></script><script async="" id="__NEXT_PAGE__/_error" type="text/javascript" src="/_next/b7ad8ed3-6152-4cd2-82ce-a6c153bcc1a8/page/_error.js"></script><div></div><script type="text/javascript" src="/_next/561a7924e7088b945c540a4f5d09dadf/app.js" async=""></script></div></body></html>
